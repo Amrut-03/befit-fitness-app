@@ -1,0 +1,170 @@
+{
+  "project_info": {
+    "project_number": "475383477382",
+    "project_id": "fitness-app-9dac8",
+    "storage_bucket": "fitness-app-9dac8.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475383477382:android:0e3c563b237c312fc44d07",
+        "android_client_info": {
+          "package_name": "com.befit_fitness.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475383477382-hoj7lkpf1qi0qqke1l3k893msv5ovb5i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.befit_fitness.app",
+            "certificate_hash": "eb5595213bf3f57fd21d5f886282b45da0ceba41"
+          }
+        },
+        {
+          "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.befitApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475383477382:android:e7aebccb416c8129c44d07",
+        "android_client_info": {
+          "package_name": "com.example.befit_fitness_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.befitApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475383477382:android:d13918e6b43b9d49c44d07",
+        "android_client_info": {
+          "package_name": "com.fitness.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475383477382-b8mh63e8tfffmlm82lrb7k9t4dnp6qpa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fitness.app",
+            "certificate_hash": "5a7c03a8cfc4a13be075fc41dc9aeece0453da02"
+          }
+        },
+        {
+          "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.befitApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475383477382:android:ce949d45326aba73c44d07",
+        "android_client_info": {
+          "package_name": "com.khochikaramrut.BeFit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.befitApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
