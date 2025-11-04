@@ -1,5 +1,6 @@
-import 'package:befit_fitness_app/core/routes/app_routes.dart';
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_pages.dart';
+import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_last_screen.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,37 +8,62 @@ import 'package:go_router/go_router.dart';
 class AppRouter {
   static final GoRouter router = GoRouter(
     debugLogDiagnostics: true,
-    initialLocation: AppRoutes.onboarding1,
+    initialLocation: OnboardingPage.onboarding1,
     routes: [
+      // Dynamic onboarding page route (handles pages 1-3)
       GoRoute(
-        path: AppRoutes.onboarding1,
+        path: OnboardingPage.onboarding,
+        name: 'onboarding',
+        builder: (context, state) {
+          final pageNumber = int.tryParse(state.pathParameters['page'] ?? '1') ?? 1;
+          
+          // Page 4 goes to the last screen (welcome/login)
+          if (pageNumber >= 4) {
+            return const OnboardingScreen4();
+          }
+          
+          // Convert 1-based to 0-based index (pages 1-3 become indices 0-2)
+          final pageIndex = pageNumber - 1;
+          
+          // Validate page index is within bounds
+          if (pageIndex < 0 || pageIndex >= OnboardingContentRepository.totalPages) {
+            // Redirect to first page if invalid
+            return const OnboardingPage(pageIndex: 0);
+          }
+          
+          return OnboardingPage(pageIndex: pageIndex);
+        },
+      ),
+      // Explicit routes for direct navigation
+      GoRoute(
+        path: OnboardingPage.onboarding1,
         name: 'onboarding1',
-        builder: (context, state) => const OnboardingScreen1(),
+        builder: (context, state) => const OnboardingPage(pageIndex: 0),
       ),
       GoRoute(
-        path: AppRoutes.onboarding2,
+        path: OnboardingPage.onboarding2,
         name: 'onboarding2',
-        builder: (context, state) => const OnboardingScreen2(),
+        builder: (context, state) => const OnboardingPage(pageIndex: 1),
       ),
       GoRoute(
-        path: AppRoutes.onboarding3,
+        path: OnboardingPage.onboarding3,
         name: 'onboarding3',
-        builder: (context, state) => const OnboardingScreen3(),
+        builder: (context, state) => const OnboardingPage(pageIndex: 2),
       ),
       GoRoute(
-        path: AppRoutes.onboarding4,
+        path: OnboardingScreen4.route,
         name: 'onboarding4',
         builder: (context, state) => const OnboardingScreen4(),
       ),
       // TODO: Add auth routes when implemented
       // GoRoute(
-      //   path: AppRoutes.login,
+      //   path: LoginScreen.route,
       //   name: 'login',
       //   builder: (context, state) => const LoginScreen(),
       // ),
       // TODO: Add home route when implemented
       // GoRoute(
-      //   path: AppRoutes.home,
+      //   path: HomeScreen.route,
       //   name: 'home',
       //   builder: (context, state) => const HomeScreen(),
       // ),

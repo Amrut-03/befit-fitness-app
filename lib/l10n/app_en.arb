@@ -42,5 +42,23 @@
   "retry": "Retry",
   "noInternetConnection": "No Internet Connection",
   "somethingWentWrong": "Something went wrong",
-  "tryAgain": "Try Again"
+  "tryAgain": "Try Again",
+  "@onboardingPage1Description": {
+    "description": "Description for onboarding page 1"
+  },
+  "onboardingPage1Description": "Welcome to better health! Physical and mental  well-being help you live energetically and reduce disease risk.",
+  "@onboardingPage2Description": {
+    "description": "Description for onboarding page 2"
+  },
+  "onboardingPage2Description": "A balanced diet provides essential nutrients, maintains weight, boosts immunity, and prevents diseases. Make smart food choices to fuel your fitness journey.",
+  "@onboardingPage3Description": {
+    "description": "Description for onboarding page 3"
+  },
+  "onboardingPage3Description": "Regular exercise is vital for health, managing weight, strengthening muscles and bones, improving heart health, and boosting mental well-being.",
+  "appName": "BeFit",
+  "appNameBe": "Be",
+  "appNameFit": "Fit",
+  "helloWelcome": "Hello, WelCome!",
+  "welcomeToBefit": "Welcome to BeFit Top PlatForm to Every people",
+  "signInWith": "Sign in with "
 }

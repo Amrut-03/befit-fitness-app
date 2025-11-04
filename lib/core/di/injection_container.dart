@@ -13,4 +13,3 @@ Future<void> initDependencyInjection() async {
   // Wait for all async registrations to complete
   await getIt.allReady();
 }
-
