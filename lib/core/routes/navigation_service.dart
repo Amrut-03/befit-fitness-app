@@ -1,4 +1,5 @@
-import 'package:befit_fitness_app/core/routes/app_routes.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_last_screen.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -32,16 +33,29 @@ extension NavigationService on BuildContext {
   }
 
   // Onboarding navigation helpers
-  void navigateToOnboarding1() => navigateTo(AppRoutes.onboarding1);
-  void navigateToOnboarding2() => pushRoute(AppRoutes.onboarding2);
-  void navigateToOnboarding3() => pushRoute(AppRoutes.onboarding3);
-  void navigateToOnboarding4() => navigateTo(AppRoutes.onboarding4);
+  void navigateToOnboarding4() => navigateTo(OnboardingScreen4.route);
+  
+  /// Navigate to a specific onboarding page (0-based index)
+  void navigateToOnboardingPage(int pageIndex) {
+    // Convert 0-based index to 1-based page number for URL
+    final pageNumber = pageIndex + 1;
+    if (pageNumber == 1) {
+      pushRoute(OnboardingPage.onboarding1);
+    } else if (pageNumber == 2) {
+      pushRoute(OnboardingPage.onboarding2);
+    } else if (pageNumber == 3) {
+      pushRoute(OnboardingPage.onboarding3);
+    } else {
+      // Fallback to dynamic route
+      pushRoute('/onboarding/$pageNumber');
+    }
+  }
 
   // Auth navigation helpers (to be implemented)
-  // void navigateToLogin() => navigateTo(AppRoutes.login);
-  // void navigateToRegister() => navigateTo(AppRoutes.register);
+  // void navigateToLogin() => navigateTo(LoginScreen.route);
+  // void navigateToRegister() => navigateTo(RegisterScreen.route);
 
   // Home navigation helper (to be implemented)
-  // void navigateToHome() => navigateTo(AppRoutes.home);
+  // void navigateToHome() => navigateTo(HomeScreen.route);
 }
 

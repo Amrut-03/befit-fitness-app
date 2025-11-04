@@ -1,14 +1,13 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
-import 'package:befit_fitness_app/core/routes/navigation_service.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
+import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
-/// Fourth onboarding screen - welcome screen with login/register options
-/// Note: Auth screens will be implemented in the auth feature
 class OnboardingScreen4 extends StatefulWidget {
+  static const String route = '/onboarding/4';
   const OnboardingScreen4({super.key});
 
   @override
@@ -20,6 +19,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -28,11 +28,11 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CustomTextRich(
-                text1: 'Be',
+                text1: localizations.appNameBe,
                 textColor1: AppColors.textPrimary,
                 fontWeight1: FontWeight.bold,
                 fontSize1: 25.sp,
-                text2: 'Fit',
+                text2: localizations.appNameFit,
                 textColor2: AppColors.primary,
                 fontWeight2: FontWeight.bold,
                 fontSize2: 25.sp,
@@ -45,7 +45,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
                 ),
               ),
               Text(
-                'Hello, WelCome!',
+                localizations.helloWelcome,
                 style: GoogleFonts.ubuntu(
                   fontSize: 27.sp,
                   fontWeight: FontWeight.bold,
@@ -55,7 +55,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20.w),
                 child: Text(
-                  'Welcome to BeFit Top PlatForm to Every people',
+                  localizations.welcomeToBefit,
                   style: GoogleFonts.ubuntu(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w500,
@@ -70,7 +70,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
                   minWidth: 300.w,
                   minHeight: 40.h,
                   elevationValue: 5.w,
-                  text: 'Login',
+                  text: localizations.login,
                   fontWeight: FontWeight.bold,
                   fontSize: 18.sp,
                   icon: Icons.email_outlined,
@@ -79,15 +79,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   iconSize: 20.w,
                   width: 10.w,
-                  onPressed: () {
-                    // TODO: Navigate to login screen when auth feature is implemented
-                    // NavigationUtils.push(
-                    //   context,
-                    //   const SignInScreen(),
-                    //   transitionType: PageTransitionType.bottomToTop,
-                    //   durationMs: 200,
-                    // );
-                  },
+                  onPressed: () {},
                   backgroundColor: Colors.black,
                   isLoading: _isLoading,
                 ),
@@ -99,7 +91,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
                   minWidth: 300.w,
                   minHeight: 40.h,
                   elevationValue: 5.w,
-                  text: 'Register',
+                  text: localizations.register,
                   fontWeight: FontWeight.bold,
                   fontSize: 18.sp,
                   icon: Icons.list_alt_outlined,
@@ -109,15 +101,7 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
                   iconColor: Colors.white,
                   iconSize: 20.w,
                   width: 10.w,
-                  onPressed: () {
-                    // TODO: Navigate to register screen when auth feature is implemented
-                    // NavigationUtils.push(
-                    //   context,
-                    //   const SignUpScreen(),
-                    //   transitionType: PageTransitionType.bottomToTop,
-                    //   durationMs: 200,
-                    // );
-                  },
+                  onPressed: () {},
                   isLoading: _isLoading,
                 ),
               ),
@@ -136,41 +120,13 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
                     backgroundColor: Colors.black,
                     elevation: 5.w,
                   ),
-                  onPressed: () async {
-                    // TODO: Implement Google Sign-In when auth feature is ready
-                    // try {
-                    //   setState(() => _isLoading = true);
-                    //   final user = await authService.signInWithGoogle(context);
-                    //   setState(() => _isLoading = false);
-                    //
-                    //   if (user != null) {
-                    //     NavigationUtils.pushAndRemoveUntil(
-                    //       context,
-                    //       const HomeScreen(),
-                    //       transitionType: PageTransitionType.rightToLeftWithFade,
-                    //       durationMs: 200,
-                    //     );
-                    //     ScaffoldMessenger.of(context).showSnackBar(
-                    //       const SnackBar(content: Text("You are signed in successfully")),
-                    //     );
-                    //   } else {
-                    //     ScaffoldMessenger.of(context).showSnackBar(
-                    //       const SnackBar(content: Text("Your Sign-In failed. Please try again.")),
-                    //     );
-                    //   }
-                    // } catch (e) {
-                    //   setState(() => _isLoading = false);
-                    //   ScaffoldMessenger.of(context).showSnackBar(
-                    //     SnackBar(content: Text("An error occurred: ${e.toString()}")),
-                    //   );
-                    // }
-                  },
+                  onPressed: () async {},
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Sign in with ',
+                        localizations.signInWith,
                         style: GoogleFonts.ubuntu(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
