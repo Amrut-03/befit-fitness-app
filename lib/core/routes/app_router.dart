@@ -1,6 +1,6 @@
+import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_last_screen.dart';
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/screens/onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -17,9 +17,9 @@ class AppRouter {
         builder: (context, state) {
           final pageNumber = int.tryParse(state.pathParameters['page'] ?? '1') ?? 1;
           
-          // Page 4 goes to the last screen (welcome/login)
+          // Page 4 goes to the login screen
           if (pageNumber >= 4) {
-            return const OnboardingScreen4();
+            return const LoginPage();
           }
           
           // Convert 1-based to 0-based index (pages 1-3 become indices 0-2)
@@ -51,9 +51,9 @@ class AppRouter {
         builder: (context, state) => const OnboardingPage(pageIndex: 2),
       ),
       GoRoute(
-        path: OnboardingScreen4.route,
-        name: 'onboarding4',
-        builder: (context, state) => const OnboardingScreen4(),
+        path: LoginPage.route,
+        name: 'login',
+        builder: (context, state) => const LoginPage(),
       ),
       // TODO: Add auth routes when implemented
       // GoRoute(

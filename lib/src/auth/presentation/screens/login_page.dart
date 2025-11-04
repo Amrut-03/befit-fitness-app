@@ -6,15 +6,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
-class OnboardingScreen4 extends StatefulWidget {
-  static const String route = '/onboarding/4';
-  const OnboardingScreen4({super.key});
+class LoginPage extends StatefulWidget {
+  static const String route = '/login';
+  const LoginPage({super.key});
 
   @override
-  State<OnboardingScreen4> createState() => _OnboardingScreen4State();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _OnboardingScreen4State extends State<OnboardingScreen4> {
+class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   @override
@@ -151,4 +151,3 @@ class _OnboardingScreen4State extends State<OnboardingScreen4> {
     );
   }
 }
-
