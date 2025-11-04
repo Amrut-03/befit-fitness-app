@@ -51,7 +51,7 @@ class OnboardingPage extends StatelessWidget {
           if (!isLastPage)
             CustomTextButton(
               text: localizations.skip,
-              onPressed: () => context.navigateToOnboarding4(),
+              onPressed: () => context.navigateToLogin(),
               textColor: AppColors.textPrimary,
               fontWeight: FontWeight.w500,
               fontSize: 18.sp,
@@ -110,7 +110,7 @@ class OnboardingPage extends StatelessWidget {
                     ElevatedIconButton(
                       onPressed: () {
                         if (isLastPage) {
-                          context.navigateToOnboarding4();
+                          context.navigateToLogin();
                         } else {
                           // Navigate to next page
                           context.navigateToOnboardingPage(pageIndex + 1);

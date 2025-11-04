@@ -1,5 +1,5 @@
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_last_screen.dart';
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/screens/onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,7 +33,10 @@ extension NavigationService on BuildContext {
   }
 
   // Onboarding navigation helpers
-  void navigateToOnboarding4() => navigateTo(OnboardingScreen4.route);
+  void navigateToOnboarding4() => navigateTo(LoginPage.route);
+  
+  // Auth navigation helpers
+  void navigateToLogin() => navigateTo(LoginPage.route);
   
   /// Navigate to a specific onboarding page (0-based index)
   void navigateToOnboardingPage(int pageIndex) {
@@ -51,8 +54,6 @@ extension NavigationService on BuildContext {
     }
   }
 
-  // Auth navigation helpers (to be implemented)
-  // void navigateToLogin() => navigateTo(LoginScreen.route);
   // void navigateToRegister() => navigateTo(RegisterScreen.route);
 
   // Home navigation helper (to be implemented)
