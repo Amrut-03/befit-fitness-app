@@ -14,21 +14,42 @@ class AppRouter {
       GoRoute(
         path: OnboardingPage.onboarding,
         name: 'onboarding',
-        builder: (context, state) {
+        redirect: (context, state) {
           final pageNumber = int.tryParse(state.pathParameters['page'] ?? '1') ?? 1;
           
-          // Page 4 goes to the login screen
+          // Page 4 or higher goes to the login screen
           if (pageNumber >= 4) {
-            return const LoginPage();
+            return LoginPage.route;
           }
           
           // Convert 1-based to 0-based index (pages 1-3 become indices 0-2)
           final pageIndex = pageNumber - 1;
           
-          // Validate page index is within bounds
+          // Redirect to first page if invalid
           if (pageIndex < 0 || pageIndex >= OnboardingContentRepository.totalPages) {
-            // Redirect to first page if invalid
-            return const OnboardingPage(pageIndex: 0);
+            return OnboardingPage.onboarding1;
+          }
+          
+          // No redirect needed, continue to builder
+          return null;
+        },
+        builder: (context, state) {
+          final pageNumber = int.tryParse(state.pathParameters['page'] ?? '1') ?? 1;
+          
+          // Convert 1-based to 0-based index (pages 1-3 become indices 0-2)
+          final pageIndex = pageNumber - 1;
+          
+          // Double-check validation in builder (safety net)
+          // If somehow we get here with an invalid index, redirect to login
+          if (pageIndex < 0 || pageIndex >= OnboardingContentRepository.totalPages || pageNumber >= 4) {
+            // Redirect to login immediately
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.go(LoginPage.route);
+            });
+            // Return a temporary loading widget while redirecting
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
           
           return OnboardingPage(pageIndex: pageIndex);

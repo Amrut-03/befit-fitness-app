@@ -2,9 +2,11 @@ import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/routes/navigation_service.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
 class OnboardingPage extends StatelessWidget {
@@ -23,9 +25,16 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Validate page index - if invalid, return error widget instead of throwing
     if (pageIndex < 0 || pageIndex >= OnboardingContentRepository.totalPages) {
-      throw ArgumentError(
-        'Page index must be between 0 and ${OnboardingContentRepository.totalPages - 1}, but got $pageIndex',
+      // Return error widget and redirect to login using GoRouter
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go(LoginPage.route);
+      });
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
