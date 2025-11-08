@@ -1,5 +1,6 @@
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_last_screen.dart';
-import 'package:befit_fitness_app/src/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
+import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
+import 'package:befit_fitness_app/src/onboarding/presentation/screens/onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,23 +21,24 @@ extension NavigationService on BuildContext {
     GoRouter.of(this).go(path);
   }
 
-  /// Navigate back
-  void pop() {
-    if (canPop()) {
-      GoRouter.of(this).pop();
-    }
-  }
-
-  /// Check if can pop
-  bool canPop() {
-    return GoRouter.of(this).canPop();
-  }
+  // Note: pop() and canPop() are provided by go_router's extension
+  // Use context.pop() or context.canPop() directly from go_router
 
   // Onboarding navigation helpers
-  void navigateToOnboarding4() => navigateTo(OnboardingScreen4.route);
+  void navigateToOnboarding4() => navigateTo(LoginPage.route);
+  
+  // Auth navigation helpers
+  void navigateToLogin() => navigateTo(LoginPage.route);
   
   /// Navigate to a specific onboarding page (0-based index)
   void navigateToOnboardingPage(int pageIndex) {
+    // Validate page index is within bounds
+    if (pageIndex < 0 || pageIndex >= OnboardingContentRepository.totalPages) {
+      // Invalid page index, navigate to login instead
+      navigateToLogin();
+      return;
+    }
+    
     // Convert 0-based index to 1-based page number for URL
     final pageNumber = pageIndex + 1;
     if (pageNumber == 1) {
@@ -46,13 +48,11 @@ extension NavigationService on BuildContext {
     } else if (pageNumber == 3) {
       pushRoute(OnboardingPage.onboarding3);
     } else {
-      // Fallback to dynamic route
-      pushRoute('/onboarding/$pageNumber');
+      // Should not reach here, but navigate to login as fallback
+      navigateToLogin();
     }
   }
 
-  // Auth navigation helpers (to be implemented)
-  // void navigateToLogin() => navigateTo(LoginScreen.route);
   // void navigateToRegister() => navigateTo(RegisterScreen.route);
 
   // Home navigation helper (to be implemented)
