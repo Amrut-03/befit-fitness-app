@@ -5,9 +5,11 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
@@ -104,7 +106,7 @@ class _LoginPageContent extends StatelessWidget {
                       minWidth: 300.w,
                       minHeight: 40.h,
                       elevationValue: 5.w,
-                      text: localizations.login,
+                      text: localizations.signIn_or_signUp,
                       fontWeight: FontWeight.bold,
                       fontSize: 18.sp,
                       icon: Icons.email_outlined,
@@ -113,7 +115,11 @@ class _LoginPageContent extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       iconSize: 20.w,
                       width: 10.w,
-                      onPressed: () {},
+                      onPressed: () {
+                        if (!isLoading) {
+                          context.push(EmailPasswordAuthPage.route);
+                        }
+                      },
                       backgroundColor: Colors.black,
                       isLoading: isLoading,
                     ),
