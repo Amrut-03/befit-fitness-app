@@ -7,6 +7,18 @@ abstract class AuthRemoteDataSource {
   /// Sign in with Google
   Future<domain.User> signInWithGoogle();
 
+  /// Sign in with email and password
+  Future<domain.User> signInWithEmailPassword(String email, String password);
+
+  /// Sign up with email and password
+  Future<domain.User> signUpWithEmailPassword(String email, String password);
+
+  /// Send email verification
+  Future<void> sendEmailVerification();
+
+  /// Reset password via email
+  Future<void> resetPassword(String email);
+
   /// Sign out the current user
   Future<void> signOut();
 
@@ -82,9 +94,111 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         photoUrl: firebaseUser.photoURL,
+        emailVerified: firebaseUser.emailVerified,
       );
     } catch (e) {
       throw Exception('Google Sign-In failed: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<domain.User> signInWithEmailPassword(String email, String password) async {
+    try {
+      final UserCredential userCredential = await firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw Exception('Failed to sign in with email and password');
+      }
+
+      // Check if email is verified
+      if (!firebaseUser.emailVerified) {
+        // Sign out the user if email is not verified
+        await firebaseAuth.signOut();
+        throw Exception('Please verify your email before signing in. Check your inbox for the verification link.');
+      }
+
+      return domain.User(
+        id: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoUrl: firebaseUser.photoURL,
+        emailVerified: firebaseUser.emailVerified,
+      );
+    } catch (e) {
+      throw Exception('Email sign-in failed: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<domain.User> signUpWithEmailPassword(String email, String password) async {
+    try {
+      final UserCredential userCredential = await firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw Exception('Failed to create account');
+      }
+
+      // Send email verification
+      try {
+        // Try sending without ActionCodeSettings first (simpler, works for most cases)
+        await firebaseUser.sendEmailVerification();
+        
+        // Log success (in production, you might want to use a logging service)
+        print('✅ Email verification sent successfully to: ${firebaseUser.email}');
+        print('📧 Please check inbox and spam folder for the verification email');
+      } catch (e) {
+        // If email sending fails, still sign out but log the error
+        await firebaseAuth.signOut();
+        print('❌ Error sending email verification: ${e.toString()}');
+        throw Exception('Account created but failed to send verification email: ${e.toString()}. Please try resending the verification email.');
+      }
+
+      // Sign out the user immediately after sign-up
+      // They need to verify their email before signing in
+      await firebaseAuth.signOut();
+
+      return domain.User(
+        id: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoUrl: firebaseUser.photoURL,
+        emailVerified: firebaseUser.emailVerified,
+      );
+    } catch (e) {
+      throw Exception('Email sign-up failed: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    try {
+      final firebaseUser = firebaseAuth.currentUser;
+      if (firebaseUser == null) {
+        throw Exception('No user is currently signed in');
+      }
+      
+      await firebaseUser.sendEmailVerification();
+      print('✅ Email verification sent successfully to: ${firebaseUser.email}');
+    } catch (e) {
+      print('Error sending email verification: ${e.toString()}');
+      throw Exception('Failed to send email verification: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> resetPassword(String email) async {
+    try {
+      await firebaseAuth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      throw Exception('Failed to send password reset email: ${e.toString()}');
     }
   }
 
@@ -113,6 +227,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         photoUrl: firebaseUser.photoURL,
+        emailVerified: firebaseUser.emailVerified,
       );
     } catch (e) {
       throw Exception('Failed to get current user: ${e.toString()}');

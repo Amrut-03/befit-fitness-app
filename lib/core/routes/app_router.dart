@@ -1,3 +1,4 @@
+import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_auth_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
 import 'package:befit_fitness_app/src/onboarding/presentation/screens/onboarding_page.dart';
@@ -75,6 +76,11 @@ class AppRouter {
         path: LoginPage.route,
         name: 'login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: EmailPasswordAuthPage.route,
+        name: 'email-password-auth',
+        builder: (context, state) => const EmailPasswordAuthPage(),
       ),
       // TODO: Add auth routes when implemented
       // GoRoute(
