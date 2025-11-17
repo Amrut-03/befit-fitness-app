@@ -5,7 +5,6 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
-import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -106,7 +105,7 @@ class _LoginPageContent extends StatelessWidget {
                       minWidth: 300.w,
                       minHeight: 40.h,
                       elevationValue: 5.w,
-                      text: localizations.signIn_or_signUp,
+                      text: localizations.signIn,
                       fontWeight: FontWeight.bold,
                       fontSize: 18.sp,
                       icon: Icons.email_outlined,
@@ -117,31 +116,10 @@ class _LoginPageContent extends StatelessWidget {
                       width: 10.w,
                       onPressed: () {
                         if (!isLoading) {
-                          context.push(EmailPasswordAuthPage.route);
+                          context.push('/sign-in');
                         }
                       },
                       backgroundColor: Colors.black,
-                      isLoading: isLoading,
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: ElevatedIconButton(
-                      minWidth: 300.w,
-                      minHeight: 40.h,
-                      elevationValue: 5.w,
-                      text: localizations.register,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18.sp,
-                      icon: Icons.list_alt_outlined,
-                      backgroundColor: Colors.black,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      textColor: Colors.white,
-                      iconColor: Colors.white,
-                      iconSize: 20.w,
-                      width: 10.w,
-                      onPressed: () {},
                       isLoading: isLoading,
                     ),
                   ),
