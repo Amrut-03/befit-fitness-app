@@ -4,6 +4,7 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -117,11 +118,14 @@ class _EmailPasswordAuthPageContentState
           } else if (state is Authenticated) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Welcome, ${state.user.displayName ?? state.user.email}!'),
+                content: Text(
+                  'Welcome, ${state.user.displayName ?? state.user.email}!',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
-            context.pop();
+            // Navigate to home screen after successful authentication
+            context.go(HomePage.route);
           } else if (state is Unauthenticated && _justSignedUp) {
             // Show success message after sign-up
             _justSignedUp = false;
@@ -246,7 +250,8 @@ class _EmailPasswordAuthPageContentState
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => _showForgotPasswordDialog(context, localizations),
+                onPressed: () =>
+                    _showForgotPasswordDialog(context, localizations),
                 child: Text(
                   localizations.forgotPassword,
                   style: GoogleFonts.ubuntu(
@@ -263,11 +268,11 @@ class _EmailPasswordAuthPageContentState
                   : () {
                       if (_signInFormKey.currentState!.validate()) {
                         context.read<AuthBloc>().add(
-                              SignInWithEmailPasswordEvent(
-                                email: _signInEmailController.text.trim(),
-                                password: _signInPasswordController.text,
-                              ),
-                            );
+                          SignInWithEmailPasswordEvent(
+                            email: _signInEmailController.text.trim(),
+                            password: _signInPasswordController.text,
+                          ),
+                        );
                       }
                     },
               style: ElevatedButton.styleFrom(
@@ -409,11 +414,11 @@ class _EmailPasswordAuthPageContentState
                       if (_signUpFormKey.currentState!.validate()) {
                         _justSignedUp = true;
                         context.read<AuthBloc>().add(
-                              SignUpWithEmailPasswordEvent(
-                                email: _signUpEmailController.text.trim(),
-                                password: _signUpPasswordController.text,
-                              ),
-                            );
+                          SignUpWithEmailPasswordEvent(
+                            email: _signUpEmailController.text.trim(),
+                            password: _signUpPasswordController.text,
+                          ),
+                        );
                       }
                     },
               style: ElevatedButton.styleFrom(
@@ -475,9 +480,7 @@ class _EmailPasswordAuthPageContentState
         child: AlertDialog(
           title: Text(
             localizations.forgotPassword,
-            style: GoogleFonts.ubuntu(
-              fontWeight: FontWeight.bold,
-            ),
+            style: GoogleFonts.ubuntu(fontWeight: FontWeight.bold),
           ),
           content: Form(
             key: formKey,
@@ -520,7 +523,9 @@ class _EmailPasswordAuthPageContentState
                   Navigator.of(dialogContext).pop();
                   ScaffoldMessenger.of(listenerContext).showSnackBar(
                     SnackBar(
-                      content: Text('Password reset email sent! Please check your inbox.'),
+                      content: Text(
+                        'Password reset email sent! Please check your inbox.',
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -534,10 +539,10 @@ class _EmailPasswordAuthPageContentState
                       : () {
                           if (formKey.currentState!.validate()) {
                             builderContext.read<AuthBloc>().add(
-                                  ResetPasswordEvent(
-                                    email: emailController.text.trim(),
-                                  ),
-                                );
+                              ResetPasswordEvent(
+                                email: emailController.text.trim(),
+                              ),
+                            );
                           }
                         },
                   child: isLoading
@@ -556,4 +561,3 @@ class _EmailPasswordAuthPageContentState
     );
   }
 }
-

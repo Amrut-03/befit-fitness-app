@@ -5,6 +5,7 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -179,7 +180,8 @@ class _SignInPageContentState extends State<_SignInPageContent> {
                 backgroundColor: Colors.green,
               ),
             );
-            context.pop();
+            // Navigate to home screen after successful authentication
+            context.go(HomePage.route);
           }
         },
         builder: (context, state) {

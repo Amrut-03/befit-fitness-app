@@ -1,5 +1,6 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/routes/navigation_service.dart';
+import 'package:befit_fitness_app/core/services/app_initialization_service.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
@@ -60,7 +61,11 @@ class OnboardingPage extends StatelessWidget {
           if (!isLastPage)
             CustomTextButton(
               text: localizations.skip,
-              onPressed: () => context.navigateToLogin(),
+              onPressed: () async {
+                // Mark onboarding as completed when skipped
+                await AppInitializationService.setOnboardingCompleted();
+                context.navigateToLogin();
+              },
               textColor: AppColors.textPrimary,
               fontWeight: FontWeight.w500,
               fontSize: 18.sp,
@@ -117,8 +122,10 @@ class OnboardingPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     ElevatedIconButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (isLastPage) {
+                          // Mark onboarding as completed
+                          await AppInitializationService.setOnboardingCompleted();
                           context.navigateToLogin();
                         } else {
                           // Navigate to next page

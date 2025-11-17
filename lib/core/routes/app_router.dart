@@ -4,14 +4,65 @@ import 'package:befit_fitness_app/src/auth/presentation/screens/sign_in_page.dar
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
 import 'package:befit_fitness_app/src/onboarding/presentation/screens/onboarding_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
+import 'package:befit_fitness_app/core/di/injection_container.dart';
+import 'package:befit_fitness_app/core/services/app_initialization_service.dart';
+import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
+import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 /// Application router configuration using GoRouter
 class AppRouter {
-  static final GoRouter router = GoRouter(
-    debugLogDiagnostics: true,
-    initialLocation: OnboardingPage.onboarding1,
+  static GoRouter createRouter() {
+    return GoRouter(
+      debugLogDiagnostics: true,
+      redirect: (context, state) async {
+        // Get the current route
+        final currentLocation = state.uri.toString();
+        
+        // Check if user is authenticated
+        final isAuthenticated = AppInitializationService.isUserAuthenticated();
+        
+        // Check if onboarding is completed
+        final onboardingCompleted = await AppInitializationService.isOnboardingCompleted();
+        
+        // If user is authenticated and trying to access auth/onboarding pages, redirect to home
+        if (isAuthenticated) {
+          if (currentLocation.startsWith('/onboarding') || 
+              currentLocation == LoginPage.route ||
+              currentLocation == SignInPage.route ||
+              currentLocation == SignUpPage.route ||
+              currentLocation == EmailPasswordAuthPage.route) {
+            return HomePage.route;
+          }
+          // User is authenticated and on home or other allowed pages, allow access
+          return null;
+        }
+        
+        // If user is not authenticated
+        if (!isAuthenticated) {
+          // If trying to access home, redirect to login
+          if (currentLocation == HomePage.route) {
+            return onboardingCompleted ? LoginPage.route : OnboardingPage.onboarding1;
+          }
+          
+          // If onboarding not completed and not on onboarding page, redirect to onboarding
+          if (!onboardingCompleted && !currentLocation.startsWith('/onboarding')) {
+            return OnboardingPage.onboarding1;
+          }
+          
+          // If onboarding completed and on onboarding page, redirect to login
+          if (onboardingCompleted && currentLocation.startsWith('/onboarding')) {
+            return LoginPage.route;
+          }
+        }
+        
+        // Allow navigation to current route
+        return null;
+      },
+      initialLocation: OnboardingPage.onboarding1,
     routes: [
       // Dynamic onboarding page route (handles pages 1-3)
       GoRoute(
@@ -94,24 +145,30 @@ class AppRouter {
         name: 'sign-up',
         builder: (context, state) => const SignUpPage(),
       ),
-      // TODO: Add auth routes when implemented
-      // GoRoute(
-      //   path: LoginScreen.route,
-      //   name: 'login',
-      //   builder: (context, state) => const LoginScreen(),
-      // ),
-      // TODO: Add home route when implemented
-      // GoRoute(
-      //   path: HomeScreen.route,
-      //   name: 'home',
-      //   builder: (context, state) => const HomeScreen(),
-      // ),
+      GoRoute(
+        path: HomePage.route,
+        name: 'home',
+        builder: (context, state) => MultiBlocProvider(
+          providers: [
+            BlocProvider<HomeBloc>(
+              create: (context) => getIt<HomeBloc>(),
+            ),
+            BlocProvider<AuthBloc>(
+              create: (context) => getIt<AuthBloc>(),
+            ),
+          ],
+          child: const HomePage(),
+        ),
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Text('Error: ${state.error}'),
       ),
     ),
-  );
+    );
+  }
+
+  static final GoRouter router = createRouter();
 }
 

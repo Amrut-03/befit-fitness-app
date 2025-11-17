@@ -5,6 +5,7 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -25,8 +26,16 @@ class LoginPage extends StatelessWidget {
   }
 }
 
-class _LoginPageContent extends StatelessWidget {
+class _LoginPageContent extends StatefulWidget {
   const _LoginPageContent();
+
+  @override
+  State<_LoginPageContent> createState() => _LoginPageContentState();
+}
+
+class _LoginPageContentState extends State<_LoginPageContent> {
+  bool _isGoogleSignInLoading = false;
+  bool _isEmailSignInLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +46,14 @@ class _LoginPageContent extends StatelessWidget {
       body: SafeArea(
         child: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthError) {
+            if (state is AuthLoading) {
+              // Don't update loading state here, let the button handlers manage it
+            } else if (state is AuthError) {
+              // Reset loading states on error
+              setState(() {
+                _isGoogleSignInLoading = false;
+                _isEmailSignInLoading = false;
+              });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(state.message),
@@ -45,18 +61,29 @@ class _LoginPageContent extends StatelessWidget {
                 ),
               );
             } else if (state is Authenticated) {
-              // Navigate to home screen or handle authenticated state
-              // TODO: Navigate to home screen when implemented
+              // Reset loading states on success
+              setState(() {
+                _isGoogleSignInLoading = false;
+                _isEmailSignInLoading = false;
+              });
+              // Navigate to home screen after successful authentication
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Welcome, ${state.user.displayName ?? state.user.email}!'),
                   backgroundColor: Colors.green,
                 ),
               );
+              // Navigate to home screen
+              context.go(HomePage.route);
+            } else if (state is Unauthenticated) {
+              // Reset loading states when unauthenticated
+              setState(() {
+                _isGoogleSignInLoading = false;
+                _isEmailSignInLoading = false;
+              });
             }
           },
           builder: (context, state) {
-            final isLoading = state is AuthLoading;
 
             return Center(
               child: Column(
@@ -115,12 +142,12 @@ class _LoginPageContent extends StatelessWidget {
                       iconSize: 20.w,
                       width: 10.w,
                       onPressed: () {
-                        if (!isLoading) {
+                        if (!_isEmailSignInLoading && !_isGoogleSignInLoading) {
                           context.push('/sign-in');
                         }
                       },
                       backgroundColor: Colors.black,
-                      isLoading: isLoading,
+                      isLoading: _isEmailSignInLoading,
                     ),
                   ),
                   Divider(
@@ -138,9 +165,12 @@ class _LoginPageContent extends StatelessWidget {
                         backgroundColor: Colors.black,
                         elevation: 5.w,
                       ),
-                      onPressed: isLoading
+                      onPressed: (_isGoogleSignInLoading || _isEmailSignInLoading)
                           ? null
                           : () {
+                              setState(() {
+                                _isGoogleSignInLoading = true;
+                              });
                               context.read<AuthBloc>().add(
                                     const SignInWithGoogleEvent(),
                                   );
@@ -149,7 +179,7 @@ class _LoginPageContent extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isLoading)
+                          if (_isGoogleSignInLoading)
                             SizedBox(
                               width: 20.w,
                               height: 20.w,
