@@ -10,7 +10,7 @@
   "diet": "Diet",
   "profile": "Profile",
   "settings": "Settings",
-  "login": "Login",
+  "signIn_or_signUp": "Sign-In/Sign-Up",
   "register": "Register",
   "logout": "Logout",
   "email": "Email",
