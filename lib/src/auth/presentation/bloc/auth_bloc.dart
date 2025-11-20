@@ -15,6 +15,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.authRepository,
   }) : super(const AuthInitial()) {
     on<SignInWithGoogleEvent>(_onSignInWithGoogle);
+    on<SignInWithEmailPasswordEvent>(_onSignInWithEmailPassword);
+    on<SignUpWithEmailPasswordEvent>(_onSignUpWithEmailPassword);
+    on<SendEmailVerificationEvent>(_onSendEmailVerification);
+    on<ResetPasswordEvent>(_onResetPassword);
     on<SignOutEvent>(_onSignOut);
     on<CheckAuthStateEvent>(_onCheckAuthState);
   }
@@ -55,6 +59,95 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (_) => emit(const Unauthenticated()),
+    );
+  }
+
+  /// Handle email/password sign-in event
+  Future<void> _onSignInWithEmailPassword(
+    SignInWithEmailPasswordEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await authRepository.signInWithEmailPassword(
+      event.email,
+      event.password,
+    );
+
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (user) => emit(Authenticated(user)),
+    );
+  }
+
+  /// Handle email/password sign-up event
+  Future<void> _onSignUpWithEmailPassword(
+    SignUpWithEmailPasswordEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await authRepository.signUpWithEmailPassword(
+      event.email,
+      event.password,
+    );
+
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (user) {
+        // After sign-up, user is signed out automatically
+        // They need to verify their email before signing in
+        // Show success message and return to unauthenticated state
+        emit(const Unauthenticated());
+      },
+    );
+  }
+
+  /// Handle send email verification event
+  Future<void> _onSendEmailVerification(
+    SendEmailVerificationEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await authRepository.sendEmailVerification();
+
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (_) {
+        // Return to previous state after sending verification
+        // Check current user to determine state
+        authRepository.getCurrentUser().then((userResult) {
+          userResult.fold(
+            (failure) => emit(AuthError(failure.message)),
+            (user) {
+              if (user != null) {
+                emit(Authenticated(user));
+              } else {
+                emit(const Unauthenticated());
+              }
+            },
+          );
+        });
+      },
+    );
+  }
+
+  /// Handle reset password event
+  Future<void> _onResetPassword(
+    ResetPasswordEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await authRepository.resetPassword(event.email);
+
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (_) {
+        // Show success message and return to unauthenticated state
+        emit(const Unauthenticated());
+      },
     );
   }
 
