@@ -1,6 +1,4 @@
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
-import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
-import 'package:befit_fitness_app/src/onboarding/presentation/screens/onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,34 +22,8 @@ extension NavigationService on BuildContext {
   // Note: pop() and canPop() are provided by go_router's extension
   // Use context.pop() or context.canPop() directly from go_router
 
-  // Onboarding navigation helpers
-  void navigateToOnboarding4() => navigateTo(LoginPage.route);
-  
   // Auth navigation helpers
   void navigateToLogin() => navigateTo(LoginPage.route);
-  
-  /// Navigate to a specific onboarding page (0-based index)
-  void navigateToOnboardingPage(int pageIndex) {
-    // Validate page index is within bounds
-    if (pageIndex < 0 || pageIndex >= OnboardingContentRepository.totalPages) {
-      // Invalid page index, navigate to login instead
-      navigateToLogin();
-      return;
-    }
-    
-    // Convert 0-based index to 1-based page number for URL
-    final pageNumber = pageIndex + 1;
-    if (pageNumber == 1) {
-      pushRoute(OnboardingPage.onboarding1);
-    } else if (pageNumber == 2) {
-      pushRoute(OnboardingPage.onboarding2);
-    } else if (pageNumber == 3) {
-      pushRoute(OnboardingPage.onboarding3);
-    } else {
-      // Should not reach here, but navigate to login as fallback
-      navigateToLogin();
-    }
-  }
 
   // void navigateToRegister() => navigateTo(RegisterScreen.route);
 
