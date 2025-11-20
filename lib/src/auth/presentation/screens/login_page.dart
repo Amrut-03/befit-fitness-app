@@ -31,7 +31,7 @@ class _LoginPageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -49,7 +49,9 @@ class _LoginPageContent extends StatelessWidget {
               // TODO: Navigate to home screen when implemented
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Welcome, ${state.user.displayName ?? state.user.email}!'),
+                  content: Text(
+                    'Welcome, ${state.user.displayName ?? state.user.email}!',
+                  ),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -75,12 +77,13 @@ class _LoginPageContent extends StatelessWidget {
                   ),
                 ),
                 // Onboarding carousel - takes most of the screen
-                Expanded(
-                  child: const OnboardingCarousel(),
-                ),
+                Expanded(child: const OnboardingCarousel()),
                 // Buttons at bottom
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 20.h,
+                  ),
                   child: Column(
                     children: [
                       // Sign In Button
@@ -113,8 +116,8 @@ class _LoginPageContent extends StatelessWidget {
                             ? null
                             : () {
                                 context.read<AuthBloc>().add(
-                                      const SignInWithGoogleEvent(),
-                                    );
+                                  const SignInWithGoogleEvent(),
+                                );
                               },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
