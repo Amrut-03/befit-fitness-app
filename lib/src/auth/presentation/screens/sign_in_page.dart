@@ -5,6 +5,11 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -42,6 +47,68 @@ class _SignInPageContentState extends State<_SignInPageContent> {
     _signInEmailController.dispose();
     _signInPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleAuthenticatedUser(BuildContext context, user) async {
+    try {
+      final profileRepository = getIt<UserProfileRepository>();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      
+      if (firebaseUser == null) return;
+
+      // Update auth user info (email and photoUrl) in Firestore
+      final documentId = (firebaseUser.email ?? firebaseUser.uid).toLowerCase();
+
+      await profileRepository.updateAuthUserInfo(
+        documentId: documentId,
+        userId: firebaseUser.uid,
+        email: firebaseUser.email,
+        photoUrl: firebaseUser.photoURL,
+      );
+
+      // Check if profile is complete
+      final isComplete = await profileRepository.isProfileComplete(documentId);
+      
+      if (isComplete) {
+        // Profile is complete, go to home
+        if (context.mounted) {
+          context.go(HomeScreen.route);
+        }
+      } else {
+        // Profile not complete, get existing profile from Firestore
+        UserProfile? existingProfile = await profileRepository.getUserProfile(documentId);
+        
+        // Get Google account data for auto-filling
+        final googleName = firebaseUser.displayName;
+        final googlePhotoUrl = firebaseUser.photoURL;
+        
+        // Merge: Use Google data for name/photo (always auto-fill from Google)
+        // Keep existing profile data for other fields (DOB, gender, workout, purpose)
+        final mergedProfile = (existingProfile ?? const UserProfile()).copyWith(
+          // Always use Google name if available (auto-fill)
+          name: (googleName != null && googleName.isNotEmpty) 
+              ? googleName 
+              : existingProfile?.name,
+          // Always use Google photo if available (auto-fill)
+          photoUrl: (googlePhotoUrl != null && googlePhotoUrl.isNotEmpty)
+              ? googlePhotoUrl
+              : existingProfile?.photoUrl,
+        );
+
+        // Navigate to profile onboarding with merged profile data (Google + existing)
+        if (context.mounted) {
+          context.go(
+            ProfileOnboardingScreen1.route,
+            extra: mergedProfile,
+          );
+        }
+      }
+    } catch (e) {
+      // On error, still navigate to onboarding
+      if (context.mounted) {
+        context.go(ProfileOnboardingScreen1.route);
+      }
+    }
   }
 
   void _showForgotPasswordDialog(
@@ -173,13 +240,7 @@ class _SignInPageContentState extends State<_SignInPageContent> {
               ),
             );
           } else if (state is Authenticated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Welcome, ${state.user.displayName ?? state.user.email}!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            context.pop();
+            _handleAuthenticatedUser(context, state.user);
           }
         },
         builder: (context, state) {

@@ -2,6 +2,11 @@ import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_a
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_in_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen2.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,18 +36,33 @@ class AppRouter {
         name: 'sign-up',
         builder: (context, state) => const SignUpPage(),
       ),
-      // TODO: Add auth routes when implemented
-      // GoRoute(
-      //   path: LoginScreen.route,
-      //   name: 'login',
-      //   builder: (context, state) => const LoginScreen(),
-      // ),
-      // TODO: Add home route when implemented
-      // GoRoute(
-      //   path: HomeScreen.route,
-      //   name: 'home',
-      //   builder: (context, state) => const HomeScreen(),
-      // ),
+      // Profile onboarding routes
+      GoRoute(
+        path: ProfileOnboardingScreen1.route,
+        name: 'profile-onboarding-1',
+        builder: (context, state) {
+          final profile = state.extra;
+          return ProfileOnboardingScreen1(
+            initialProfile: profile is UserProfile ? profile : null,
+          );
+        },
+      ),
+      GoRoute(
+        path: ProfileOnboardingScreen2.route,
+        name: 'profile-onboarding-2',
+        builder: (context, state) => const ProfileOnboardingScreen2(),
+      ),
+      GoRoute(
+        path: ProfileOnboardingScreen3.route,
+        name: 'profile-onboarding-3',
+        builder: (context, state) => const ProfileOnboardingScreen3(),
+      ),
+      // Home route
+      GoRoute(
+        path: HomeScreen.route,
+        name: 'home',
+        builder: (context, state) => const HomeScreen(),
+      ),
     ],
     errorBuilder: (context, state) =>
         Scaffold(body: Center(child: Text('Error: ${state.error}'))),
