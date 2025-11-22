@@ -1,11 +1,14 @@
 import 'package:get_it/get_it.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:befit_fitness_app/src/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:befit_fitness_app/src/auth/data/repositories/auth_repository_impl.dart';
 import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
 import 'package:befit_fitness_app/src/auth/domain/usecase/google_sign_in_usecase.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/datasources/user_profile_remote_data_source.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 
 /// GetIt instance for dependency injection
 final getIt = GetIt.instance;
@@ -50,6 +53,23 @@ Future<void> initDependencyInjection() async {
     () => AuthBloc(
       googleSignInUseCase: getIt<GoogleSignInUseCase>(),
       authRepository: getIt<AuthRepository>(),
+    ),
+  );
+
+  // Firestore
+  getIt.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
+
+  // User Profile Remote Data Source
+  getIt.registerLazySingleton<UserProfileRemoteDataSource>(
+    () => UserProfileRemoteDataSourceImpl(
+      firestore: getIt<FirebaseFirestore>(),
+    ),
+  );
+
+  // User Profile Repository
+  getIt.registerLazySingleton<UserProfileRepository>(
+    () => UserProfileRepositoryImpl(
+      remoteDataSource: getIt<UserProfileRemoteDataSource>(),
     ),
   );
 
