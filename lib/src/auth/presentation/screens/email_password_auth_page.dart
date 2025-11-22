@@ -4,6 +4,12 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -32,36 +38,79 @@ class _EmailPasswordAuthPageContent extends StatefulWidget {
 }
 
 class _EmailPasswordAuthPageContentState
-    extends State<_EmailPasswordAuthPageContent>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+    extends State<_EmailPasswordAuthPageContent> {
   final _signInFormKey = GlobalKey<FormState>();
-  final _signUpFormKey = GlobalKey<FormState>();
   final _signInEmailController = TextEditingController();
   final _signInPasswordController = TextEditingController();
-  final _signUpEmailController = TextEditingController();
-  final _signUpPasswordController = TextEditingController();
-  final _signUpConfirmPasswordController = TextEditingController();
   bool _signInPasswordVisible = false;
-  bool _signUpPasswordVisible = false;
-  bool _signUpConfirmPasswordVisible = false;
-  bool _justSignedUp = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _signInEmailController.dispose();
     _signInPasswordController.dispose();
-    _signUpEmailController.dispose();
-    _signUpPasswordController.dispose();
-    _signUpConfirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleAuthenticatedUser(BuildContext context, user) async {
+    try {
+      final profileRepository = getIt<UserProfileRepository>();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      
+      if (firebaseUser == null) return;
+
+      // Update auth user info (email and photoUrl) in Firestore
+      final documentId = (firebaseUser.email ?? firebaseUser.uid).toLowerCase();
+
+      await profileRepository.updateAuthUserInfo(
+        documentId: documentId,
+        userId: firebaseUser.uid,
+        email: firebaseUser.email,
+        photoUrl: firebaseUser.photoURL,
+      );
+
+      // Check if profile is complete
+      final isComplete = await profileRepository.isProfileComplete(documentId);
+      
+      if (isComplete) {
+        // Profile is complete, go to home
+        if (context.mounted) {
+          context.go(HomeScreen.route);
+        }
+      } else {
+        // Profile not complete, get existing profile from Firestore
+        UserProfile? existingProfile = await profileRepository.getUserProfile(documentId);
+        
+        // Get user account data for auto-filling
+        final userName = firebaseUser.displayName;
+        final userPhotoUrl = firebaseUser.photoURL;
+        
+        // Merge: Use user data for name/photo (always auto-fill)
+        // Keep existing profile data for other fields (DOB, gender, workout, purpose)
+        final mergedProfile = (existingProfile ?? const UserProfile()).copyWith(
+          // Always use user name if available (auto-fill)
+          name: (userName != null && userName.isNotEmpty) 
+              ? userName 
+              : existingProfile?.name,
+          // Always use user photo if available (auto-fill)
+          photoUrl: (userPhotoUrl != null && userPhotoUrl.isNotEmpty)
+              ? userPhotoUrl
+              : existingProfile?.photoUrl,
+        );
+
+        // Navigate to profile onboarding with merged profile data
+        if (context.mounted) {
+          context.go(
+            ProfileOnboardingScreen1.route,
+            extra: mergedProfile,
+          );
+        }
+      }
+    } catch (e) {
+      // On error, still navigate to onboarding
+      if (context.mounted) {
+        context.go(ProfileOnboardingScreen1.route);
+      }
+    }
   }
 
   @override
@@ -78,7 +127,7 @@ class _EmailPasswordAuthPageContentState
           onPressed: () => context.pop(),
         ),
         title: Text(
-          localizations.signIn_or_signUp,
+          localizations.signIn,
           style: GoogleFonts.ubuntu(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -86,24 +135,6 @@ class _EmailPasswordAuthPageContentState
           ),
         ),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textPrimary.withOpacity(0.6),
-          indicatorColor: AppColors.primary,
-          labelStyle: GoogleFonts.ubuntu(
-            fontWeight: FontWeight.bold,
-            fontSize: 16.sp,
-          ),
-          unselectedLabelStyle: GoogleFonts.ubuntu(
-            fontWeight: FontWeight.normal,
-            fontSize: 16.sp,
-          ),
-          tabs: [
-            Tab(text: localizations.signIn),
-            Tab(text: localizations.signUp),
-          ],
-        ),
       ),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -115,68 +146,19 @@ class _EmailPasswordAuthPageContentState
               ),
             );
           } else if (state is Authenticated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Welcome, ${state.user.displayName ?? state.user.email}!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            context.pop();
-          } else if (state is Unauthenticated && _justSignedUp) {
-            // Show success message after sign-up
-            _justSignedUp = false;
-            // Clear sign-up form
-            _signUpEmailController.clear();
-            _signUpPasswordController.clear();
-            _signUpConfirmPasswordController.clear();
-            // Switch to sign-in tab
-            _tabController.animateTo(0);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Account created successfully!',
-                      style: GoogleFonts.ubuntu(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      'A verification email has been sent to ${_signUpEmailController.text.trim()}. Please check your inbox (and spam folder) to verify your account before signing in.',
-                      style: GoogleFonts.ubuntu(fontSize: 12.sp),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 8),
-                action: SnackBarAction(
-                  label: 'OK',
-                  textColor: Colors.white,
-                  onPressed: () {},
-                ),
-              ),
-            );
+            _handleAuthenticatedUser(context, state.user);
           }
         },
         builder: (context, state) {
           final isLoading = state is AuthLoading;
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              // Sign-In Tab
-              _buildSignInTab(context, localizations, isLoading),
-              // Sign-Up Tab
-              _buildSignUpTab(context, localizations, isLoading),
-            ],
-          );
+          return _buildSignInForm(context, localizations, isLoading);
         },
       ),
     );
   }
 
-  Widget _buildSignInTab(
+  Widget _buildSignInForm(
     BuildContext context,
     AppLocalizations localizations,
     bool isLoading,
@@ -295,163 +277,32 @@ class _EmailPasswordAuthPageContentState
                       ),
                     ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSignUpTab(
-    BuildContext context,
-    AppLocalizations localizations,
-    bool isLoading,
-  ) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-      child: Form(
-        key: _signUpFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
             SizedBox(height: 20.h),
-            TextFormField(
-              controller: _signUpEmailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: localizations.email,
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
-                }
-                if (!value.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 20.h),
-            TextFormField(
-              controller: _signUpPasswordController,
-              obscureText: !_signUpPasswordVisible,
-              decoration: InputDecoration(
-                labelText: localizations.password,
-                prefixIcon: Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _signUpPasswordVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  localizations.dontHaveAccount,
+                  style: GoogleFonts.ubuntu(
+                    fontSize: 14.sp,
+                    color: AppColors.textPrimary,
                   ),
+                ),
+                SizedBox(width: 5.w),
+                TextButton(
                   onPressed: () {
-                    setState(() {
-                      _signUpPasswordVisible = !_signUpPasswordVisible;
-                    });
+                    context.push(SignUpPage.route);
                   },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a password';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 20.h),
-            TextFormField(
-              controller: _signUpConfirmPasswordController,
-              obscureText: !_signUpConfirmPasswordVisible,
-              decoration: InputDecoration(
-                labelText: localizations.confirmPassword,
-                prefixIcon: Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _signUpConfirmPasswordVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _signUpConfirmPasswordVisible =
-                          !_signUpConfirmPasswordVisible;
-                    });
-                  },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please confirm your password';
-                }
-                if (value != _signUpPasswordController.text) {
-                  return 'Passwords do not match';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 30.h),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () {
-                      if (_signUpFormKey.currentState!.validate()) {
-                        _justSignedUp = true;
-                        context.read<AuthBloc>().add(
-                              SignUpWithEmailPasswordEvent(
-                                email: _signUpEmailController.text.trim(),
-                                password: _signUpPasswordController.text,
-                              ),
-                            );
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: EdgeInsets.symmetric(vertical: 15.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
-              child: isLoading
-                  ? SizedBox(
-                      height: 20.h,
-                      width: 20.w,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      localizations.createAccount,
-                      style: GoogleFonts.ubuntu(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18.sp,
-                      ),
+                  child: Text(
+                    localizations.signUp,
+                    style: GoogleFonts.ubuntu(
+                      fontSize: 14.sp,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
                     ),
-            ),
-            SizedBox(height: 20.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.w),
-              child: Text(
-                'A verification email will be sent to your email address. Please verify your email to complete the registration.',
-                style: GoogleFonts.ubuntu(
-                  fontSize: 12.sp,
-                  color: AppColors.textPrimary.withOpacity(0.7),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
+              ],
             ),
           ],
         ),

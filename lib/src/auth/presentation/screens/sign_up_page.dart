@@ -4,7 +4,7 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
-import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -80,7 +80,8 @@ class _SignUpPageContentState extends State<_SignUpPageContent> {
               ),
             );
           } else if (state is Unauthenticated) {
-            // After successful sign-up, navigate back to login screen
+            // After successful sign-up, navigate back to sign in page
+            final email = _signUpEmailController.text.trim();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Column(
@@ -93,7 +94,7 @@ class _SignUpPageContentState extends State<_SignUpPageContent> {
                     ),
                     SizedBox(height: 5.h),
                     Text(
-                      'A verification email has been sent to ${_signUpEmailController.text.trim()}. Please check your inbox (and spam folder) to verify your account before signing in.',
+                      'A verification email has been sent to $email. Please check your inbox (and spam folder) to verify your account before signing in.',
                       style: GoogleFonts.ubuntu(fontSize: 12.sp),
                     ),
                   ],
@@ -107,11 +108,11 @@ class _SignUpPageContentState extends State<_SignUpPageContent> {
                 ),
               ),
             );
-            // Navigate back to login screen
-            context.go(LoginPage.route);
+            // Navigate back to sign in page
+            context.go(EmailPasswordAuthPage.route);
           } else if (state is Authenticated) {
-            // If somehow authenticated, navigate back to login
-            context.go(LoginPage.route);
+            // If somehow authenticated, navigate back to sign in
+            context.go(EmailPasswordAuthPage.route);
           }
         },
         builder: (context, state) {
