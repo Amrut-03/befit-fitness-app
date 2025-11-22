@@ -15,8 +15,11 @@ final getIt = GetIt.instance;
 
 /// Initialize dependency injection
 Future<void> initDependencyInjection() async {
-  // Firebase Auth
+  // Firebase
   getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
+  getIt.registerLazySingleton<FirebaseFirestore>(
+    () => FirebaseFirestore.instance,
+  );
 
   // Google Sign-In - Version 6.1.5 (stable version with traditional API)
   // For Android, serverClientId (Web Client ID) is required to get idToken

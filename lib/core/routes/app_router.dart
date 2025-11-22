@@ -11,6 +11,7 @@ import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/pr
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 /// Application router configuration using GoRouter

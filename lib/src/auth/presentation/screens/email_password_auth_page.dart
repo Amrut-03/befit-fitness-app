@@ -228,7 +228,8 @@ class _EmailPasswordAuthPageContentState
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => _showForgotPasswordDialog(context, localizations),
+                onPressed: () =>
+                    _showForgotPasswordDialog(context, localizations),
                 child: Text(
                   localizations.forgotPassword,
                   style: GoogleFonts.ubuntu(
@@ -245,11 +246,11 @@ class _EmailPasswordAuthPageContentState
                   : () {
                       if (_signInFormKey.currentState!.validate()) {
                         context.read<AuthBloc>().add(
-                              SignInWithEmailPasswordEvent(
-                                email: _signInEmailController.text.trim(),
-                                password: _signInPasswordController.text,
-                              ),
-                            );
+                          SignInWithEmailPasswordEvent(
+                            email: _signInEmailController.text.trim(),
+                            password: _signInPasswordController.text,
+                          ),
+                        );
                       }
                     },
               style: ElevatedButton.styleFrom(
@@ -326,9 +327,7 @@ class _EmailPasswordAuthPageContentState
         child: AlertDialog(
           title: Text(
             localizations.forgotPassword,
-            style: GoogleFonts.ubuntu(
-              fontWeight: FontWeight.bold,
-            ),
+            style: GoogleFonts.ubuntu(fontWeight: FontWeight.bold),
           ),
           content: Form(
             key: formKey,
@@ -371,7 +370,9 @@ class _EmailPasswordAuthPageContentState
                   Navigator.of(dialogContext).pop();
                   ScaffoldMessenger.of(listenerContext).showSnackBar(
                     SnackBar(
-                      content: Text('Password reset email sent! Please check your inbox.'),
+                      content: Text(
+                        'Password reset email sent! Please check your inbox.',
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -385,10 +386,10 @@ class _EmailPasswordAuthPageContentState
                       : () {
                           if (formKey.currentState!.validate()) {
                             builderContext.read<AuthBloc>().add(
-                                  ResetPasswordEvent(
-                                    email: emailController.text.trim(),
-                                  ),
-                                );
+                              ResetPasswordEvent(
+                                email: emailController.text.trim(),
+                              ),
+                            );
                           }
                         },
                   child: isLoading
@@ -407,4 +408,3 @@ class _EmailPasswordAuthPageContentState
     );
   }
 }
-
