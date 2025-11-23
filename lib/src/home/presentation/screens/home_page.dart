@@ -21,6 +21,7 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/drawer_widget.dart';
+import 'package:befit_fitness_app/src/home/presentation/widgets/custom_bottom_nav_bar.dart';
 
 /// Home page screen
 class HomePage extends StatefulWidget {
@@ -38,10 +39,33 @@ class _HomePageState extends State<HomePage> {
   double _scrollOffset = 0.0;
   double _scrollStep = 400.0;
   bool _scrollingForward = true;
+  int _currentNavIndex = 0;
 
   String get _userEmail {
     final user = FirebaseAuth.instance.currentUser;
     return user?.email ?? '';
+  }
+
+  void _onNavItemTapped(int index) {
+    setState(() {
+      _currentNavIndex = index;
+    });
+    
+    // Handle navigation based on index
+    switch (index) {
+      case 0:
+        // Already on home
+        break;
+      case 2:
+        // Navigate to More
+        // TODO: Navigate to More screen
+        break;
+    }
+  }
+
+  void _onCenterButtonTapped() {
+    // Center button expansion is handled by CustomBottomNavBar
+    // This can be used for additional actions if needed
   }
 
   @override
@@ -214,6 +238,13 @@ class _HomePageState extends State<HomePage> {
               backgroundColor: AppColors.background,
               drawer: state is HomeLoaded
                   ? HomeDrawer(state: state)
+                  : null,
+              bottomNavigationBar: state is HomeLoaded
+                  ? CustomBottomNavBar(
+                      currentIndex: _currentNavIndex,
+                      onTap: _onNavItemTapped,
+                      onCenterButtonTap: _onCenterButtonTapped,
+                    )
                   : null,
               body: state is HomeLoading
                   ? const Center(
