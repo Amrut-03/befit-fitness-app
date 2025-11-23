@@ -5,7 +5,7 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
-import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
@@ -74,7 +74,7 @@ class _EmailPasswordAuthPageContentState
       if (isComplete) {
         // Profile is complete, go to home
         if (context.mounted) {
-          context.go(HomeScreen.route);
+          context.go(HomePage.route);
         }
       } else {
         // Profile not complete, get existing profile from Firestore
