@@ -6,7 +6,7 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_auth_page.dart';
-import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:befit_fitness_app/src/onboarding/presentation/widgets/onboarding_carousel.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
@@ -84,7 +84,7 @@ class _LoginPageContentState extends State<_LoginPageContent> {
       if (isComplete) {
         // Profile is complete, go to home
         if (context.mounted) {
-          context.go(HomeScreen.route);
+          context.go(HomePage.route);
         }
         return;
       }

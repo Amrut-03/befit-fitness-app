@@ -18,9 +18,9 @@ import 'package:befit_fitness_app/src/home/presentation/widgets/calculator_value
 import 'package:befit_fitness_app/src/home/presentation/widgets/home_card_widget.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/search_widget.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
-import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/widgets/drawer_widget.dart';
 
 /// Home page screen
 class HomePage extends StatefulWidget {
@@ -83,72 +83,6 @@ class _HomePageState extends State<HomePage> {
   }
 
 
-  void _showSignOutConfirmationDialog(BuildContext context) {
-    // Get AuthBloc from the outer context before showing dialog
-    final authBloc = context.read<AuthBloc>();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return BlocProvider.value(
-          value: authBloc,
-          child: AlertDialog(
-            title: Text(
-              'Confirm Logout',
-              style: GoogleFonts.ubuntu(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            content: Text(
-              'Are you sure you want to log out?',
-              style: GoogleFonts.ubuntu(
-                color: Colors.black,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            actions: <Widget>[
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                ),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.ubuntu(
-                    color: Colors.black,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                ),
-                child: Text(
-                  'Log out',
-                  style: GoogleFonts.ubuntu(
-                    color: Colors.black,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  authBloc.add(const SignOutEvent());
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   void _showQuickWorkoutOptions(BuildContext context) {
     final quickWorkoutInfo = {
@@ -278,6 +212,9 @@ class _HomePageState extends State<HomePage> {
             },
             child: Scaffold(
               backgroundColor: AppColors.background,
+              drawer: state is HomeLoaded
+                  ? HomeDrawer(state: state)
+                  : null,
               body: state is HomeLoading
                   ? const Center(
                       child: CircularProgressIndicator(
@@ -355,6 +292,20 @@ class _HomePageState extends State<HomePage> {
               width: 370.w,
               child: Stack(
                 children: [
+                  // Menu button to open drawer
+                  Positioned(
+                    top: 30,
+                    left: 0,
+                    child: Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(
+                          Icons.menu,
+                          color: Colors.black,
+                        ),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
+                  ),
                   Column(
                     children: [
                       SizedBox(height: 65.h),
@@ -410,29 +361,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ],
-                  ),
-                  Positioned(
-                    top: 30,
-                    child: InkWell(
-                      onTap: () => _showSignOutConfirmationDialog(context),
-                      child: Padding(
-                        padding: const EdgeInsets.all(5.0),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Log-out',
-                              style: GoogleFonts.ubuntu(
-                                color: Colors.black,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            const Icon(Icons.logout_outlined),
-                          ],
-                        ),
-                      ),
-                    ),
                   ),
                   Positioned(
                     bottom: 20.h,
