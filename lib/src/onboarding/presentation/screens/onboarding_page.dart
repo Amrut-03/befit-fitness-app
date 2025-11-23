@@ -129,7 +129,7 @@ class OnboardingPage extends StatelessWidget {
                           context.navigateToLogin();
                         } else {
                           // Navigate to next page
-                          context.navigateToOnboardingPage(pageIndex + 1);
+                          // context.navigateToOnboardingPage(pageIndex + 1);
                         }
                       },
                       minWidth: 100.w,

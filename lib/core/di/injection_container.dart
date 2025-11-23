@@ -9,6 +9,12 @@ import 'package:befit_fitness_app/src/auth/domain/usecase/google_sign_in_usecase
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/datasources/user_profile_remote_data_source.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
+import 'package:befit_fitness_app/src/home/data/datasources/home_remote_data_source.dart';
+import 'package:befit_fitness_app/src/home/data/repositories/home_repository_impl.dart';
+import 'package:befit_fitness_app/src/home/domain/repositories/home_repository.dart';
+import 'package:befit_fitness_app/src/home/domain/usecase/get_health_metrics_usecase.dart';
+import 'package:befit_fitness_app/src/home/domain/usecase/get_user_profile_usecase.dart';
+import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
 
 /// GetIt instance for dependency injection
 final getIt = GetIt.instance;
@@ -59,9 +65,6 @@ Future<void> initDependencyInjection() async {
     ),
   );
 
-  // Firestore
-  getIt.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
-
   // User Profile Remote Data Source
   getIt.registerLazySingleton<UserProfileRemoteDataSource>(
     () => UserProfileRemoteDataSourceImpl(
@@ -73,6 +76,37 @@ Future<void> initDependencyInjection() async {
   getIt.registerLazySingleton<UserProfileRepository>(
     () => UserProfileRepositoryImpl(
       remoteDataSource: getIt<UserProfileRemoteDataSource>(),
+    ),
+  );
+
+  // Home Remote Data Source
+  getIt.registerLazySingleton<HomeRemoteDataSource>(
+    () => HomeRemoteDataSourceImpl(
+      firestore: getIt<FirebaseFirestore>(),
+    ),
+  );
+
+  // Home Repository
+  getIt.registerLazySingleton<HomeRepository>(
+    () => HomeRepositoryImpl(
+      getIt<HomeRemoteDataSource>(),
+    ),
+  );
+
+  // Home Use Cases
+  getIt.registerLazySingleton<GetHealthMetricsUseCase>(
+    () => GetHealthMetricsUseCase(getIt<HomeRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetUserProfileUseCase>(
+    () => GetUserProfileUseCase(getIt<HomeRepository>()),
+  );
+
+  // Home BLoC (factory - new instance each time)
+  getIt.registerFactory<HomeBloc>(
+    () => HomeBloc(
+      getHealthMetricsUseCase: getIt<GetHealthMetricsUseCase>(),
+      getUserProfileUseCase: getIt<GetUserProfileUseCase>(),
     ),
   );
 

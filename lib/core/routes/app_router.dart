@@ -3,7 +3,9 @@ import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_a
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_in_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
-import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
+import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
@@ -27,7 +29,7 @@ class AppRouter {
           location == SignInPage.route ||
           location == SignUpPage.route;
       final isOnboardingRoute = location.startsWith('/profile-onboarding');
-      final isHomeRoute = location == HomeScreen.route;
+        final isHomeRoute = location == HomePage.route;
 
       // If user is authenticated
       if (firebaseUser != null) {
@@ -39,7 +41,7 @@ class AppRouter {
             final isComplete = await profileRepository.isProfileComplete(documentId);
             
             if (isComplete) {
-              return HomeScreen.route;
+              return HomePage.route;
             } else {
               return ProfileOnboardingScreen1.route;
             }
@@ -70,7 +72,7 @@ class AppRouter {
             final isComplete = await profileRepository.isProfileComplete(documentId);
             
             if (isComplete) {
-              return HomeScreen.route;
+              return HomePage.route;
             }
           } catch (e) {
             // On error, allow access
@@ -132,9 +134,19 @@ class AppRouter {
       ),
       // Home route
       GoRoute(
-        path: HomeScreen.route,
+        path: HomePage.route,
         name: 'home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => getIt<HomeBloc>(),
+            ),
+            BlocProvider(
+              create: (context) => getIt<AuthBloc>(),
+            ),
+          ],
+          child: const HomePage(),
+        ),
       ),
     ],
     errorBuilder: (context, state) =>

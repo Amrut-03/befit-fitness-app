@@ -82,6 +82,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+
   void _showSignOutConfirmationDialog(BuildContext context) {
     // Get AuthBloc from the outer context before showing dialog
     final authBloc = context.read<AuthBloc>();
@@ -366,6 +367,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         child: Stack(
                           children: [
+                            // Decorative circle SVG
                             Positioned(
                               bottom: 0,
                               child: ClipRRect(
@@ -375,6 +377,7 @@ class _HomePageState extends State<HomePage> {
                                   color: Colors.black.withOpacity(0.3),
                                   width: 300.w,
                                   height: 150.h,
+                                  placeholderBuilder: (context) => const SizedBox.shrink(),
                                 ),
                               ),
                             ),
@@ -643,3 +646,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+

@@ -46,7 +46,11 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
       }
 
       final data = userDoc.data();
-      return UserProfile(firstName: data?['firstname'], email: email);
+      // Try both 'firstname' and 'firstName' to handle different field names
+      return UserProfile(
+        firstName: data?['firstName'] ?? data?['firstname'],
+        email: email,
+      );
     } catch (e) {
       throw Exception('Failed to fetch user profile: $e');
     }

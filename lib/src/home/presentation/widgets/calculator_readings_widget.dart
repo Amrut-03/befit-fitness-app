@@ -43,7 +43,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                     SizedBox(
                       height: 35.h,
                       child: LottieBuilder.asset(
-                        'assets/lotties/steps.json',
+                        'assets/home/lotties/steps.json',
                       ),
                     ),
                     SizedBox(height: 5.h),
@@ -81,7 +81,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                     SizedBox(
                       height: 40.h,
                       width: 40.w,
-                      child: LottieBuilder.asset('assets/lotties/flame.json'),
+                      child: LottieBuilder.asset('assets/home/lotties/flame.json'),
                     ),
                     SizedBox(height: 2.h),
                     Text(
@@ -119,7 +119,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                     SizedBox(
                       height: 25.h,
                       width: 25.w,
-                      child: LottieBuilder.asset('assets/lotties/heart1.json'),
+                      child: LottieBuilder.asset('assets/home/lotties/heart1.json'),
                     ),
                     SizedBox(height: 3.h),
                     Text(

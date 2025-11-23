@@ -104,7 +104,10 @@ flutter:
     - assets/onboarding/icons/
     - assets/home/icons/
     - assets/home/images/
+    - assets/home/lotties/
     - assets/lotties/
+    - assets/lotties/authentication/
+    - assets/lotties/onboarding/
     - assets/svg/
 
   # An image asset can refer to one or more resolution-specific "variants", see
