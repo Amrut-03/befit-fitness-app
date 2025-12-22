@@ -102,8 +102,9 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       final data = docSnapshot.data()!;
       
       // Combine firstName and lastName into name
-      final firstName = data['firstName'] as String?;
-      final lastName = data['lastName'] as String?;
+      // Try both 'firstName' and 'firstname' to handle different field names
+      final firstName = (data['firstName'] ?? data['firstname']) as String?;
+      final lastName = (data['lastName'] ?? data['lastname']) as String?;
       final name = [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
 
       // Parse dateOfBirth
@@ -142,7 +143,9 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
 
   bool _isProfileComplete(Map<String, dynamic> data) {
     // Profile is complete if all required fields are present
-    return data['firstName'] != null &&
+    // Try both 'firstName' and 'firstname' to handle different field names
+    final hasFirstName = data['firstName'] != null || data['firstname'] != null;
+    return hasFirstName &&
         data['dateOfBirth'] != null &&
         data['gender'] != null &&
         data['workoutType'] != null &&

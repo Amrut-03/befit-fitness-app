@@ -3,14 +3,18 @@ import 'package:befit_fitness_app/src/auth/presentation/screens/email_password_a
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_in_page.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
-import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
+import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen2.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 /// Application router configuration using GoRouter
@@ -26,7 +30,8 @@ class AppRouter {
           location == SignInPage.route ||
           location == SignUpPage.route;
       final isOnboardingRoute = location.startsWith('/profile-onboarding');
-      final isHomeRoute = location == HomeScreen.route;
+      final isHomeRoute = location == HomePage.route;
+      final isPermissionsRoute = location == PermissionsScreen.route;
 
       // If user is authenticated
       if (firebaseUser != null) {
@@ -38,7 +43,7 @@ class AppRouter {
             final isComplete = await profileRepository.isProfileComplete(documentId);
             
             if (isComplete) {
-              return HomeScreen.route;
+              return HomePage.route;
             } else {
               return ProfileOnboardingScreen1.route;
             }
@@ -47,7 +52,7 @@ class AppRouter {
             return ProfileOnboardingScreen1.route;
           }
         }
-        // If on home route, check if profile is complete
+        // If on home route, check if profile is complete and permissions granted
         if (isHomeRoute) {
           try {
             final profileRepository = getIt<UserProfileRepository>();
@@ -57,9 +62,17 @@ class AppRouter {
             if (!isComplete) {
               return ProfileOnboardingScreen1.route;
             }
+            
+            // Check if permissions are granted (only check once, not every time)
+            // This will be handled by the permissions screen
           } catch (e) {
             // On error, allow access
           }
+        }
+        
+        // Allow access to permissions screen
+        if (isPermissionsRoute) {
+          return null;
         }
         // If on onboarding route, check if profile is complete
         if (isOnboardingRoute) {
@@ -69,7 +82,7 @@ class AppRouter {
             final isComplete = await profileRepository.isProfileComplete(documentId);
             
             if (isComplete) {
-              return HomeScreen.route;
+              return HomePage.route;
             }
           } catch (e) {
             // On error, allow access
@@ -129,11 +142,27 @@ class AppRouter {
         name: 'profile-onboarding-3',
         builder: (context, state) => const ProfileOnboardingScreen3(),
       ),
+      // Permissions route
+      GoRoute(
+        path: PermissionsScreen.route,
+        name: 'permissions',
+        builder: (context, state) => const PermissionsScreen(),
+      ),
       // Home route
       GoRoute(
-        path: HomeScreen.route,
+        path: HomePage.route,
         name: 'home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => getIt<HomeBloc>(),
+            ),
+            BlocProvider(
+              create: (context) => getIt<AuthBloc>(),
+            ),
+          ],
+          child: const HomePage(),
+        ),
       ),
     ],
     errorBuilder: (context, state) =>

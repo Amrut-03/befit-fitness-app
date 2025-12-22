@@ -5,10 +5,12 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
-import 'package:befit_fitness_app/src/home/presentation/screens/home_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -72,9 +74,18 @@ class _EmailPasswordAuthPageContentState
       final isComplete = await profileRepository.isProfileComplete(documentId);
       
       if (isComplete) {
-        // Profile is complete, go to home
+        // Profile is complete, check permissions then go to home
         if (context.mounted) {
-          context.go(HomeScreen.route);
+          // Check if permissions are already granted
+          final permissionService = PermissionService();
+          final permissionsGranted = await permissionService.areAllPermissionsGranted();
+          
+          if (permissionsGranted) {
+            context.go(HomePage.route);
+          } else {
+            // Show permissions screen first
+            context.go(PermissionsScreen.route);
+          }
         }
       } else {
         // Profile not complete, get existing profile from Firestore
@@ -228,7 +239,8 @@ class _EmailPasswordAuthPageContentState
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => _showForgotPasswordDialog(context, localizations),
+                onPressed: () =>
+                    _showForgotPasswordDialog(context, localizations),
                 child: Text(
                   localizations.forgotPassword,
                   style: GoogleFonts.ubuntu(
@@ -245,11 +257,11 @@ class _EmailPasswordAuthPageContentState
                   : () {
                       if (_signInFormKey.currentState!.validate()) {
                         context.read<AuthBloc>().add(
-                              SignInWithEmailPasswordEvent(
-                                email: _signInEmailController.text.trim(),
-                                password: _signInPasswordController.text,
-                              ),
-                            );
+                          SignInWithEmailPasswordEvent(
+                            email: _signInEmailController.text.trim(),
+                            password: _signInPasswordController.text,
+                          ),
+                        );
                       }
                     },
               style: ElevatedButton.styleFrom(
@@ -326,9 +338,7 @@ class _EmailPasswordAuthPageContentState
         child: AlertDialog(
           title: Text(
             localizations.forgotPassword,
-            style: GoogleFonts.ubuntu(
-              fontWeight: FontWeight.bold,
-            ),
+            style: GoogleFonts.ubuntu(fontWeight: FontWeight.bold),
           ),
           content: Form(
             key: formKey,
@@ -371,7 +381,9 @@ class _EmailPasswordAuthPageContentState
                   Navigator.of(dialogContext).pop();
                   ScaffoldMessenger.of(listenerContext).showSnackBar(
                     SnackBar(
-                      content: Text('Password reset email sent! Please check your inbox.'),
+                      content: Text(
+                        'Password reset email sent! Please check your inbox.',
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -385,10 +397,10 @@ class _EmailPasswordAuthPageContentState
                       : () {
                           if (formKey.currentState!.validate()) {
                             builderContext.read<AuthBloc>().add(
-                                  ResetPasswordEvent(
-                                    email: emailController.text.trim(),
-                                  ),
-                                );
+                              ResetPasswordEvent(
+                                email: emailController.text.trim(),
+                              ),
+                            );
                           }
                         },
                   child: isLoading
@@ -407,4 +419,3 @@ class _EmailPasswordAuthPageContentState
     );
   }
 }
-
