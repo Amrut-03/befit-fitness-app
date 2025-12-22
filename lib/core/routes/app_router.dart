@@ -11,6 +11,7 @@ import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_prof
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen2.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,7 +30,8 @@ class AppRouter {
           location == SignInPage.route ||
           location == SignUpPage.route;
       final isOnboardingRoute = location.startsWith('/profile-onboarding');
-        final isHomeRoute = location == HomePage.route;
+      final isHomeRoute = location == HomePage.route;
+      final isPermissionsRoute = location == PermissionsScreen.route;
 
       // If user is authenticated
       if (firebaseUser != null) {
@@ -50,7 +52,7 @@ class AppRouter {
             return ProfileOnboardingScreen1.route;
           }
         }
-        // If on home route, check if profile is complete
+        // If on home route, check if profile is complete and permissions granted
         if (isHomeRoute) {
           try {
             final profileRepository = getIt<UserProfileRepository>();
@@ -60,9 +62,17 @@ class AppRouter {
             if (!isComplete) {
               return ProfileOnboardingScreen1.route;
             }
+            
+            // Check if permissions are granted (only check once, not every time)
+            // This will be handled by the permissions screen
           } catch (e) {
             // On error, allow access
           }
+        }
+        
+        // Allow access to permissions screen
+        if (isPermissionsRoute) {
+          return null;
         }
         // If on onboarding route, check if profile is complete
         if (isOnboardingRoute) {
@@ -131,6 +141,12 @@ class AppRouter {
         path: ProfileOnboardingScreen3.route,
         name: 'profile-onboarding-3',
         builder: (context, state) => const ProfileOnboardingScreen3(),
+      ),
+      // Permissions route
+      GoRoute(
+        path: PermissionsScreen.route,
+        name: 'permissions',
+        builder: (context, state) => const PermissionsScreen(),
       ),
       // Home route
       GoRoute(

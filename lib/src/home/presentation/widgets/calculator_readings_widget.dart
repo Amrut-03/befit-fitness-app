@@ -4,19 +4,19 @@ import 'package:lottie/lottie.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 
-/// Widget displaying calculator readings (BMI, BMR, HRC)
+/// Widget displaying user fitness data (Steps, Calories, Heart Rate)
 class CalculatorReadingsWidget extends StatelessWidget {
   final VoidCallback onClick;
-  final double bmi;
-  final int bmr;
-  final int hrc;
+  final int steps;
+  final double calories;
+  final double? heartRate;
 
   const CalculatorReadingsWidget({
     super.key,
     required this.onClick,
-    required this.bmi,
-    required this.bmr,
-    required this.hrc,
+    required this.steps,
+    required this.calories,
+    this.heartRate,
   });
 
   @override
@@ -48,7 +48,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                     ),
                     SizedBox(height: 5.h),
                     Text(
-                      bmi.toStringAsFixed(2),
+                      _formatSteps(steps),
                       style: GoogleFonts.ubuntu(
                         color: Colors.white,
                         fontSize: 10.sp,
@@ -56,7 +56,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'BMI',
+                      'Steps',
                       style: GoogleFonts.ubuntu(
                         color: Colors.white,
                         fontSize: 10.sp,
@@ -85,7 +85,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                     ),
                     SizedBox(height: 2.h),
                     Text(
-                      bmr.toString(),
+                      calories.toStringAsFixed(0),
                       style: GoogleFonts.ubuntu(
                         color: Colors.white,
                         fontSize: 10.sp,
@@ -93,7 +93,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'BMR',
+                      'Calories',
                       style: GoogleFonts.ubuntu(
                         color: Colors.white,
                         fontSize: 10.sp,
@@ -123,7 +123,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                     ),
                     SizedBox(height: 3.h),
                     Text(
-                      hrc.toString(),
+                      heartRate != null ? heartRate!.toStringAsFixed(0) : '--',
                       style: GoogleFonts.ubuntu(
                         color: Colors.white,
                         fontSize: 10.sp,
@@ -131,7 +131,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'HRC',
+                      'Heart Rate',
                       style: GoogleFonts.ubuntu(
                         color: Colors.white,
                         fontSize: 10.sp,
@@ -146,6 +146,17 @@ class CalculatorReadingsWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Format steps number for display (e.g., 1234 -> 1.2K, 1234567 -> 1.2M)
+  String _formatSteps(int steps) {
+    if (steps >= 1000000) {
+      return '${(steps / 1000000).toStringAsFixed(1)}M';
+    } else if (steps >= 1000) {
+      return '${(steps / 1000).toStringAsFixed(1)}K';
+    } else {
+      return steps.toString();
+    }
   }
 }
 

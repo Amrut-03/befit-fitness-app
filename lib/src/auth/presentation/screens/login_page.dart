@@ -11,6 +11,8 @@ import 'package:befit_fitness_app/src/onboarding/presentation/widgets/onboarding
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -82,9 +84,18 @@ class _LoginPageContentState extends State<_LoginPageContent> {
       }
       
       if (isComplete) {
-        // Profile is complete, go to home
+        // Profile is complete, check permissions then go to home
         if (context.mounted) {
-          context.go(HomePage.route);
+          // Check if permissions are already granted
+          final permissionService = PermissionService();
+          final permissionsGranted = await permissionService.areAllPermissionsGranted();
+          
+          if (permissionsGranted) {
+            context.go(HomePage.route);
+          } else {
+            // Show permissions screen first
+            context.go(PermissionsScreen.route);
+          }
         }
         return;
       }
