@@ -26,9 +26,9 @@ class DiscoverSection extends StatelessWidget {
       'key': 'Workout Plan',
     },
     {
-      'icon': Icons.fitness_center,
+      'icon': Icons.qr_code_scanner,
       'title': 'Bar Code Scanner',
-      'subtitle': 'Sweating is self-care',
+      'subtitle': 'Scan food products',
       'key': 'Bar Code Scanner',
     },
     {
