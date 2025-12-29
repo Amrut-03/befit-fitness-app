@@ -1,12 +1,9 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
-import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/domain/usecase/save_user_profile_usecase.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -37,49 +34,14 @@ class _ProfileOnboardingScreen3State extends State<ProfileOnboardingScreen3> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not authenticated')),
-      );
-      return;
-    }
-
     setState(() => _isSaving = true);
 
     try {
-      final profileRepository = getIt<UserProfileRepository>();
-      
-      // Save complete profile
-      final completeProfile = profile.copyWith(isProfileComplete: true);
-      final documentId = (user.email ?? user.uid).toLowerCase();
-
-      await profileRepository.saveUserProfile(
-        userId: user.uid,
-        documentId: documentId,
-        profile: completeProfile,
-      );
-      
-      // Update auth user info (email and photoUrl)
-      await profileRepository.updateAuthUserInfo(
-        documentId: documentId,
-        userId: user.uid,
-        email: user.email,
-        photoUrl: user.photoURL,
-      );
+      final saveProfileUseCase = getIt<SaveUserProfileUseCase>();
+      await saveProfileUseCase(profile);
 
       if (mounted) {
-        // Check if permissions are already granted
-        final permissionService = PermissionService();
-        final permissionsGranted = await permissionService.areAllPermissionsGranted();
-        
-        if (permissionsGranted) {
-          // Permissions already granted, go to home
-          context.go(HomePage.route);
-        } else {
-          // Show permissions screen first
-          context.go(PermissionsScreen.route);
-        }
+        context.go(HomePage.route);
       }
     } catch (e) {
       if (mounted) {

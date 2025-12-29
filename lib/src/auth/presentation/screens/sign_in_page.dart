@@ -4,39 +4,24 @@ import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
-import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
+import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
-import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
-import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class SignInPage extends StatelessWidget {
+class SignInPage extends StatefulWidget {
   static const String route = '/sign-in';
   const SignInPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => getIt<AuthBloc>(),
-      child: const _SignInPageContent(),
-    );
-  }
+  State<SignInPage> createState() => _SignInPageState();
 }
 
-class _SignInPageContent extends StatefulWidget {
-  const _SignInPageContent();
-
-  @override
-  State<_SignInPageContent> createState() => _SignInPageContentState();
-}
-
-class _SignInPageContentState extends State<_SignInPageContent> {
+class _SignInPageState extends State<SignInPage> {
   final _signInFormKey = GlobalKey<FormState>();
   final _signInEmailController = TextEditingController();
   final _signInPasswordController = TextEditingController();
@@ -49,66 +34,216 @@ class _SignInPageContentState extends State<_SignInPageContent> {
     super.dispose();
   }
 
-  Future<void> _handleAuthenticatedUser(BuildContext context, user) async {
-    try {
-      final profileRepository = getIt<UserProfileRepository>();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      
-      if (firebaseUser == null) return;
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
 
-      // Update auth user info (email and photoUrl) in Firestore
-      final documentId = (firebaseUser.email ?? firebaseUser.uid).toLowerCase();
+    return BlocProvider(
+      create: (context) => getIt<AuthBloc>(),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(
+            localizations.signIn,
+            style: GoogleFonts.ubuntu(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 20.sp,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: BlocConsumer<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            } else if (state is Authenticated) {
+              _handleNavigation(context, state);
+            }
+          },
+          builder: (context, state) {
+            final isLoading = state is AuthLoading;
+            return _buildSignInForm(context, localizations, isLoading);
+          },
+        ),
+      ),
+    );
+  }
 
-      await profileRepository.updateAuthUserInfo(
-        documentId: documentId,
-        userId: firebaseUser.uid,
-        email: firebaseUser.email,
-        photoUrl: firebaseUser.photoURL,
+  void _handleNavigation(BuildContext context, Authenticated state) {
+    if (!context.mounted) return;
+
+    if (state.isProfileComplete == true) {
+      context.go(HomePage.route);
+    } else {
+      context.go(
+        ProfileOnboardingScreen1.route,
+        extra: state.mergedProfile,
       );
-
-      // Check if profile is complete
-      final isComplete = await profileRepository.isProfileComplete(documentId);
-      
-      if (isComplete) {
-        // Profile is complete, go to home
-        if (context.mounted) {
-          context.go(HomePage.route);
-        }
-      } else {
-        // Profile not complete, get existing profile from Firestore
-        UserProfile? existingProfile = await profileRepository.getUserProfile(documentId);
-        
-        // Get Google account data for auto-filling
-        final googleName = firebaseUser.displayName;
-        final googlePhotoUrl = firebaseUser.photoURL;
-        
-        // Merge: Use Google data for name/photo (always auto-fill from Google)
-        // Keep existing profile data for other fields (DOB, gender, workout, purpose)
-        final mergedProfile = (existingProfile ?? const UserProfile()).copyWith(
-          // Always use Google name if available (auto-fill)
-          name: (googleName != null && googleName.isNotEmpty) 
-              ? googleName 
-              : existingProfile?.name,
-          // Always use Google photo if available (auto-fill)
-          photoUrl: (googlePhotoUrl != null && googlePhotoUrl.isNotEmpty)
-              ? googlePhotoUrl
-              : existingProfile?.photoUrl,
-        );
-
-        // Navigate to profile onboarding with merged profile data (Google + existing)
-        if (context.mounted) {
-          context.go(
-            ProfileOnboardingScreen1.route,
-            extra: mergedProfile,
-          );
-        }
-      }
-    } catch (e) {
-      // On error, still navigate to onboarding
-      if (context.mounted) {
-        context.go(ProfileOnboardingScreen1.route);
-      }
     }
+  }
+
+  Widget _buildSignInForm(
+    BuildContext context,
+    AppLocalizations localizations,
+    bool isLoading,
+  ) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+      child: Form(
+        key: _signInFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(height: 20.h),
+            TextFormField(
+              controller: _signInEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: localizations.email,
+                prefixIcon: Icon(Icons.email_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your email';
+                }
+                if (!value.contains('@')) {
+                  return 'Please enter a valid email';
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 20.h),
+            TextFormField(
+              controller: _signInPasswordController,
+              obscureText: !_signInPasswordVisible,
+              decoration: InputDecoration(
+                labelText: localizations.password,
+                prefixIcon: Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _signInPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _signInPasswordVisible = !_signInPasswordVisible;
+                    });
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your password';
+                }
+                if (value.length < 6) {
+                  return 'Password must be at least 6 characters';
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 10.h),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => _showForgotPasswordDialog(context, localizations),
+                child: Text(
+                  localizations.forgotPassword,
+                  style: GoogleFonts.ubuntu(
+                    color: AppColors.primary,
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 30.h),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () {
+                      if (_signInFormKey.currentState!.validate()) {
+                        context.read<AuthBloc>().add(
+                              SignInWithEmailPasswordEvent(
+                                email: _signInEmailController.text.trim(),
+                                password: _signInPasswordController.text,
+                              ),
+                            );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                padding: EdgeInsets.symmetric(vertical: 15.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+              ),
+              child: isLoading
+                  ? SizedBox(
+                      height: 20.h,
+                      width: 20.w,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      localizations.signIn,
+                      style: GoogleFonts.ubuntu(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18.sp,
+                      ),
+                    ),
+            ),
+            SizedBox(height: 20.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  localizations.dontHaveAccount,
+                  style: GoogleFonts.ubuntu(
+                    fontSize: 14.sp,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(width: 5.w),
+                TextButton(
+                  onPressed: () {
+                    // TODO: Navigate to sign up
+                  },
+                  child: Text(
+                    localizations.signUp,
+                    style: GoogleFonts.ubuntu(
+                      fontSize: 14.sp,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showForgotPasswordDialog(
@@ -126,9 +261,7 @@ class _SignInPageContentState extends State<_SignInPageContent> {
         child: AlertDialog(
           title: Text(
             localizations.forgotPassword,
-            style: GoogleFonts.ubuntu(
-              fontWeight: FontWeight.bold,
-            ),
+            style: GoogleFonts.ubuntu(fontWeight: FontWeight.bold),
           ),
           content: Form(
             key: formKey,
@@ -206,194 +339,4 @@ class _SignInPageContentState extends State<_SignInPageContent> {
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          localizations.signIn,
-          style: GoogleFonts.ubuntu(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 20.sp,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: BlocConsumer<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          } else if (state is Authenticated) {
-            _handleAuthenticatedUser(context, state.user);
-          }
-        },
-        builder: (context, state) {
-          final isLoading = state is AuthLoading;
-
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-            child: Form(
-              key: _signInFormKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(height: 20.h),
-                  TextFormField(
-                    controller: _signInEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: localizations.email,
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 20.h),
-                  TextFormField(
-                    controller: _signInPasswordController,
-                    obscureText: !_signInPasswordVisible,
-                    decoration: InputDecoration(
-                      labelText: localizations.password,
-                      prefixIcon: Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _signInPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _signInPasswordVisible = !_signInPasswordVisible;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => _showForgotPasswordDialog(context, localizations),
-                      child: Text(
-                        localizations.forgotPassword,
-                        style: GoogleFonts.ubuntu(
-                          color: AppColors.primary,
-                          fontSize: 14.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 30.h),
-                  ElevatedButton(
-                    onPressed: isLoading
-                        ? null
-                        : () {
-                            if (_signInFormKey.currentState!.validate()) {
-                              context.read<AuthBloc>().add(
-                                    SignInWithEmailPasswordEvent(
-                                      email: _signInEmailController.text.trim(),
-                                      password: _signInPasswordController.text,
-                                    ),
-                                  );
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      padding: EdgeInsets.symmetric(vertical: 15.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                    ),
-                    child: isLoading
-                        ? SizedBox(
-                            height: 20.h,
-                            width: 20.w,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            localizations.signIn,
-                            style: GoogleFonts.ubuntu(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18.sp,
-                            ),
-                          ),
-                  ),
-                  SizedBox(height: 20.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        localizations.dontHaveAccount,
-                        style: GoogleFonts.ubuntu(
-                          fontSize: 14.sp,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      SizedBox(width: 5.w),
-                      TextButton(
-                        onPressed: () {
-                          context.push(SignUpPage.route);
-                        },
-                        child: Text(
-                          localizations.signUp,
-                          style: GoogleFonts.ubuntu(
-                            fontSize: 14.sp,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
-

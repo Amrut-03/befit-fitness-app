@@ -6,41 +6,22 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/sign_up_page.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
-import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
-import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class EmailPasswordAuthPage extends StatelessWidget {
+class EmailPasswordAuthPage extends StatefulWidget {
   static const String route = '/email-password-auth';
   const EmailPasswordAuthPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => getIt<AuthBloc>(),
-      child: const _EmailPasswordAuthPageContent(),
-    );
-  }
+  State<EmailPasswordAuthPage> createState() => _EmailPasswordAuthPageState();
 }
 
-class _EmailPasswordAuthPageContent extends StatefulWidget {
-  const _EmailPasswordAuthPageContent();
-
-  @override
-  State<_EmailPasswordAuthPageContent> createState() =>
-      _EmailPasswordAuthPageContentState();
-}
-
-class _EmailPasswordAuthPageContentState
-    extends State<_EmailPasswordAuthPageContent> {
+class _EmailPasswordAuthPageState extends State<EmailPasswordAuthPage> {
   final _signInFormKey = GlobalKey<FormState>();
   final _signInEmailController = TextEditingController();
   final _signInPasswordController = TextEditingController();
@@ -53,120 +34,64 @@ class _EmailPasswordAuthPageContentState
     super.dispose();
   }
 
-  Future<void> _handleAuthenticatedUser(BuildContext context, user) async {
-    try {
-      final profileRepository = getIt<UserProfileRepository>();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      
-      if (firebaseUser == null) return;
-
-      // Update auth user info (email and photoUrl) in Firestore
-      final documentId = (firebaseUser.email ?? firebaseUser.uid).toLowerCase();
-
-      await profileRepository.updateAuthUserInfo(
-        documentId: documentId,
-        userId: firebaseUser.uid,
-        email: firebaseUser.email,
-        photoUrl: firebaseUser.photoURL,
-      );
-
-      // Check if profile is complete
-      final isComplete = await profileRepository.isProfileComplete(documentId);
-      
-      if (isComplete) {
-        // Profile is complete, check permissions then go to home
-        if (context.mounted) {
-          // Check if permissions are already granted
-          final permissionService = PermissionService();
-          final permissionsGranted = await permissionService.areAllPermissionsGranted();
-          
-          if (permissionsGranted) {
-            context.go(HomePage.route);
-          } else {
-            // Show permissions screen first
-            context.go(PermissionsScreen.route);
-          }
-        }
-      } else {
-        // Profile not complete, get existing profile from Firestore
-        UserProfile? existingProfile = await profileRepository.getUserProfile(documentId);
-        
-        // Get user account data for auto-filling
-        final userName = firebaseUser.displayName;
-        final userPhotoUrl = firebaseUser.photoURL;
-        
-        // Merge: Use user data for name/photo (always auto-fill)
-        // Keep existing profile data for other fields (DOB, gender, workout, purpose)
-        final mergedProfile = (existingProfile ?? const UserProfile()).copyWith(
-          // Always use user name if available (auto-fill)
-          name: (userName != null && userName.isNotEmpty) 
-              ? userName 
-              : existingProfile?.name,
-          // Always use user photo if available (auto-fill)
-          photoUrl: (userPhotoUrl != null && userPhotoUrl.isNotEmpty)
-              ? userPhotoUrl
-              : existingProfile?.photoUrl,
-        );
-
-        // Navigate to profile onboarding with merged profile data
-        if (context.mounted) {
-          context.go(
-            ProfileOnboardingScreen1.route,
-            extra: mergedProfile,
-          );
-        }
-      }
-    } catch (e) {
-      // On error, still navigate to onboarding
-      if (context.mounted) {
-        context.go(ProfileOnboardingScreen1.route);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return BlocProvider(
+      create: (context) => getIt<AuthBloc>(),
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          localizations.signIn,
-          style: GoogleFonts.ubuntu(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 20.sp,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => context.pop(),
           ),
+          title: Text(
+            localizations.signIn,
+            style: GoogleFonts.ubuntu(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 20.sp,
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: BlocConsumer<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          } else if (state is Authenticated) {
-            _handleAuthenticatedUser(context, state.user);
-          }
-        },
-        builder: (context, state) {
-          final isLoading = state is AuthLoading;
-
-          return _buildSignInForm(context, localizations, isLoading);
-        },
+        body: BlocConsumer<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            } else if (state is Authenticated) {
+              _handleNavigation(context, state);
+            }
+          },
+          builder: (context, state) {
+            final isLoading = state is AuthLoading;
+            return _buildSignInForm(context, localizations, isLoading);
+          },
+        ),
       ),
     );
+  }
+
+  void _handleNavigation(BuildContext context, Authenticated state) {
+    if (!context.mounted) return;
+
+    if (state.isProfileComplete == true) {
+      context.go(HomePage.route);
+    } else {
+      context.go(
+        ProfileOnboardingScreen1.route,
+        extra: state.mergedProfile,
+      );
+    }
   }
 
   Widget _buildSignInForm(
@@ -239,8 +164,7 @@ class _EmailPasswordAuthPageContentState
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () =>
-                    _showForgotPasswordDialog(context, localizations),
+                onPressed: () => _showForgotPasswordDialog(context, localizations),
                 child: Text(
                   localizations.forgotPassword,
                   style: GoogleFonts.ubuntu(
@@ -328,7 +252,6 @@ class _EmailPasswordAuthPageContentState
   ) {
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    // Get the AuthBloc from the parent context before showing the dialog
     final authBloc = context.read<AuthBloc>();
 
     showDialog(

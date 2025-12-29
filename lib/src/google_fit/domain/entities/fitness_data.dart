@@ -6,6 +6,7 @@ class FitnessData extends Equatable {
   final double? distance; // in meters
   final double? calories; // in kcal
   final double? heartRate; // in bpm
+  final int? moveMin; // active minutes
   final double? weight; // in kg
   final double? height; // in meters
   final DateTime? date;
@@ -15,6 +16,7 @@ class FitnessData extends Equatable {
     this.distance,
     this.calories,
     this.heartRate,
+    this.moveMin,
     this.weight,
     this.height,
     this.date,
@@ -26,6 +28,7 @@ class FitnessData extends Equatable {
         distance,
         calories,
         heartRate,
+        moveMin,
         weight,
         height,
         date,
@@ -36,6 +39,7 @@ class FitnessData extends Equatable {
     double? distance,
     double? calories,
     double? heartRate,
+    int? moveMin,
     double? weight,
     double? height,
     DateTime? date,
@@ -45,6 +49,7 @@ class FitnessData extends Equatable {
       distance: distance ?? this.distance,
       calories: calories ?? this.calories,
       heartRate: heartRate ?? this.heartRate,
+      moveMin: moveMin ?? this.moveMin,
       weight: weight ?? this.weight,
       height: height ?? this.height,
       date: date ?? this.date,
