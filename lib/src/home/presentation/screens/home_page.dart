@@ -20,6 +20,7 @@ import 'package:befit_fitness_app/src/home/presentation/widgets/overall_health_w
 import 'package:befit_fitness_app/src/home/presentation/widgets/activities_tile.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/activity_item.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/health_metrics_chart.dart';
+import 'package:befit_fitness_app/src/activity_tracking/presentation/screens/activity_tracking_screen.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
@@ -356,8 +357,10 @@ class _HomePageState extends State<HomePage> {
                   // TODO: Navigate to more activities screen
                 },
                 onActivityTap: (activity) {
-                  // TODO: Handle activity selection
-                  debugPrint('Selected activity: ${activity.name}');
+                  context.push(
+                    ActivityTrackingScreen.route,
+                    extra: activity,
+                  );
                 },
               ),
               SizedBox(

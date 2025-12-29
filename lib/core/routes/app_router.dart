@@ -12,6 +12,8 @@ import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/pr
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen2.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
 import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/activity_tracking/presentation/screens/activity_tracking_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/widgets/activity_item.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -163,6 +165,21 @@ class AppRouter {
           ],
           child: const HomePage(),
         ),
+      ),
+      // Activity tracking route
+      GoRoute(
+        path: ActivityTrackingScreen.route,
+        name: 'activity-tracking',
+        builder: (context, state) {
+          final activity = state.extra;
+          if (activity is Activity) {
+            return ActivityTrackingScreen(activity: activity);
+          }
+          // Fallback - should not happen
+          return const Scaffold(
+            body: Center(child: Text('Activity not provided')),
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) =>
