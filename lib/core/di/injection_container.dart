@@ -7,9 +7,11 @@ import 'package:befit_fitness_app/src/auth/data/datasources/auth_remote_data_sou
 import 'package:befit_fitness_app/src/auth/data/repositories/auth_repository_impl.dart';
 import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
 import 'package:befit_fitness_app/src/auth/domain/usecase/google_sign_in_usecase.dart';
+import 'package:befit_fitness_app/src/auth/domain/usecase/handle_authenticated_user_usecase.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/datasources/user_profile_remote_data_source.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/domain/usecase/save_user_profile_usecase.dart';
 import 'package:befit_fitness_app/src/home/data/datasources/home_remote_data_source.dart';
 import 'package:befit_fitness_app/src/home/data/repositories/home_repository_impl.dart';
 import 'package:befit_fitness_app/src/home/domain/repositories/home_repository.dart';
@@ -25,6 +27,8 @@ import 'package:befit_fitness_app/src/google_fit/domain/usecase/get_fitness_data
 import 'package:befit_fitness_app/src/google_fit/domain/usecase/request_permissions_usecase.dart';
 import 'package:befit_fitness_app/src/google_fit/domain/usecase/get_aggregated_data_usecase.dart';
 import 'package:befit_fitness_app/src/google_fit/domain/usecase/write_steps_usecase.dart';
+import 'package:befit_fitness_app/src/home/domain/usecase/get_fitness_data_with_permissions_usecase.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
 
 /// GetIt instance for dependency injection
 final getIt = GetIt.instance;
@@ -76,11 +80,16 @@ Future<void> initDependencyInjection() async {
     () => GoogleSignInUseCase(getIt<AuthRepository>()),
   );
 
+  getIt.registerLazySingleton<HandleAuthenticatedUserUseCase>(
+    () => HandleAuthenticatedUserUseCase(getIt<UserProfileRepository>()),
+  );
+
   // Auth BLoC (factory - new instance each time)
   getIt.registerFactory<AuthBloc>(
     () => AuthBloc(
       googleSignInUseCase: getIt<GoogleSignInUseCase>(),
       authRepository: getIt<AuthRepository>(),
+      handleAuthenticatedUserUseCase: getIt<HandleAuthenticatedUserUseCase>(),
     ),
   );
 
@@ -96,6 +105,11 @@ Future<void> initDependencyInjection() async {
     () => UserProfileRepositoryImpl(
       remoteDataSource: getIt<UserProfileRemoteDataSource>(),
     ),
+  );
+
+  // Profile Onboarding Use Cases
+  getIt.registerLazySingleton<SaveUserProfileUseCase>(
+    () => SaveUserProfileUseCase(getIt<UserProfileRepository>()),
   );
 
   // Home Remote Data Source
@@ -121,13 +135,6 @@ Future<void> initDependencyInjection() async {
     () => GetUserProfileUseCase(getIt<HomeRepository>()),
   );
 
-  // Home BLoC (factory - new instance each time)
-  getIt.registerFactory<HomeBloc>(
-    () => HomeBloc(
-      getHealthMetricsUseCase: getIt<GetHealthMetricsUseCase>(),
-      getUserProfileUseCase: getIt<GetUserProfileUseCase>(),
-    ),
-  );
 
   // Google Fit - Health instance
   // The health package automatically uses Health Connect on Android if available
@@ -173,6 +180,30 @@ Future<void> initDependencyInjection() async {
 
   getIt.registerLazySingleton<WriteStepsUseCase>(
     () => WriteStepsUseCase(getIt<GoogleFitRepository>()),
+  );
+
+  // Home Fitness Data Use Case
+  getIt.registerLazySingleton<GetFitnessDataWithPermissionsUseCase>(
+    () => GetFitnessDataWithPermissionsUseCase(
+      repository: getIt<GoogleFitRepository>(),
+      getFitnessDataUseCase: getIt<GetFitnessDataUseCase>(),
+      requestPermissionsUseCase: getIt<RequestPermissionsUseCase>(),
+    ),
+  );
+
+  // Permission Service
+  getIt.registerLazySingleton<PermissionService>(
+    () => PermissionService(),
+  );
+
+  // Update Home BLoC registration with new dependencies
+  getIt.registerFactory<HomeBloc>(
+    () => HomeBloc(
+      getHealthMetricsUseCase: getIt<GetHealthMetricsUseCase>(),
+      getUserProfileUseCase: getIt<GetUserProfileUseCase>(),
+      getFitnessDataWithPermissionsUseCase: getIt<GetFitnessDataWithPermissionsUseCase>(),
+      permissionService: getIt<PermissionService>(),
+    ),
   );
 
   // Wait for all async registrations to complete

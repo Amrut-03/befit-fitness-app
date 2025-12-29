@@ -28,3 +28,13 @@ class RefreshHomeDataEvent extends HomeEvent {
   List<Object> get props => [email];
 }
 
+/// Event to fetch fitness data
+class FetchFitnessDataEvent extends HomeEvent {
+  const FetchFitnessDataEvent();
+}
+
+/// Event to register with Health Connect
+class RegisterWithHealthConnectEvent extends HomeEvent {
+  const RegisterWithHealthConnectEvent();
+}
+

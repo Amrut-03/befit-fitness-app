@@ -65,3 +65,8 @@ class ResetPasswordEvent extends AuthEvent {
   @override
   List<Object> get props => [email];
 }
+
+/// Event to handle authenticated user navigation
+class HandleAuthenticatedUserEvent extends AuthEvent {
+  const HandleAuthenticatedUserEvent();
+}
