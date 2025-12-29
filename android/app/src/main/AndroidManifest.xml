@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Location permissions for activity tracking -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
     <application
         android:label="befit_fitness_app"
         android:name="${applicationName}"
@@ -30,6 +35,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Google Maps API Key
+             To use Google Maps, you need to:
+             1. Get a Google Maps API key from https://console.cloud.google.com/
+             2. Enable "Maps SDK for Android" in the Google Cloud Console
+             3. Replace YOUR_GOOGLE_MAPS_API_KEY below with your actual API key
+             4. For production, restrict the API key to your app's package name and SHA-1 certificate
+        -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyC6CZMQ1rgcvcNCbbmPuZa4-SpSbt-vriw" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
