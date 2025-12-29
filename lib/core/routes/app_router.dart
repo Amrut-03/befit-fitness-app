@@ -14,6 +14,9 @@ import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/pr
 import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
 import 'package:befit_fitness_app/src/activity_tracking/presentation/screens/activity_tracking_screen.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/activity_item.dart';
+import 'package:befit_fitness_app/src/food_scanner/presentation/screens/barcode_scanner_screen.dart';
+import 'package:befit_fitness_app/src/food_scanner/presentation/screens/food_product_details_screen.dart';
+import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -178,6 +181,27 @@ class AppRouter {
           // Fallback - should not happen
           return const Scaffold(
             body: Center(child: Text('Activity not provided')),
+          );
+        },
+      ),
+      // Barcode scanner route
+      GoRoute(
+        path: BarcodeScannerScreen.route,
+        name: 'barcode-scanner',
+        builder: (context, state) => const BarcodeScannerScreen(),
+      ),
+      // Food product details route
+      GoRoute(
+        path: FoodProductDetailsScreen.route,
+        name: 'food-product-details',
+        builder: (context, state) {
+          final product = state.extra;
+          if (product is FoodProduct) {
+            return FoodProductDetailsScreen(product: product);
+          }
+          // Fallback - should not happen
+          return const Scaffold(
+            body: Center(child: Text('Product not provided')),
           );
         },
       ),

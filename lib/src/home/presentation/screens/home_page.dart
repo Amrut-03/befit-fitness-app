@@ -21,6 +21,7 @@ import 'package:befit_fitness_app/src/home/presentation/widgets/activities_tile.
 import 'package:befit_fitness_app/src/home/presentation/widgets/activity_item.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/health_metrics_chart.dart';
 import 'package:befit_fitness_app/src/activity_tracking/presentation/screens/activity_tracking_screen.dart';
+import 'package:befit_fitness_app/src/food_scanner/presentation/screens/barcode_scanner_screen.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
@@ -417,6 +418,10 @@ class _HomePageState extends State<HomePage> {
               SizedBox(height: 16.h),
               DiscoverSection(
                 onCardTap: (cardName) {
+                  if (cardName == 'Bar Code Scanner') {
+                    context.push(BarcodeScannerScreen.route);
+                  }
+                  // Handle other card taps here
                 },
               ),
               SizedBox(height: 20.h),

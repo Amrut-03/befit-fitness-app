@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   static const String appName = 'Befit';
@@ -9,8 +10,14 @@ class AppConfig {
   static const bool isProduction = kReleaseMode;
   static const bool isDevelopment = kDebugMode;
   
-  // API Configuration
-  static const String geminiApiKey = 'AIzaSyB-CEcXIi8Dgj7Mk0BZ3QuA661Xu21TUxM';
+  // API Configuration - Load from .env file
+  static String get geminiApiKey => 
+      dotenv.env['GEMINI_API_KEY'] ?? 
+      'AIzaSyB-CEcXIi8Dgj7Mk0BZ3QuA661Xu21TUxM'; // Fallback for development
+  
+  static String get googleMapsApiKey => 
+      dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 
+      ''; // Will be set in AndroidManifest.xml
   
   // Firebase Configuration
   static const String firebaseProjectId = 'befit-app';
