@@ -41,19 +41,21 @@
             android:name="flutterEmbedding"
             android:value="2" />
         <!-- Google Maps API Key
-             IMPORTANT: Replace GOOGLE_MAPS_API_KEY_PLACEHOLDER with your actual API key from .env file
+             IMPORTANT: This key is also stored in .env file for reference
              The API key should be set in the .env file as GOOGLE_MAPS_API_KEY
              
              To use Google Maps, you need to:
              1. Get a Google Maps API key from https://console.cloud.google.com/
              2. Enable "Maps SDK for Android" in the Google Cloud Console
              3. Add GOOGLE_MAPS_API_KEY=your_key_here to your .env file
-             4. Replace GOOGLE_MAPS_API_KEY_PLACEHOLDER below with the value from .env
+             4. Replace the value below with the value from .env
              5. For production, restrict the API key to your app's package name and SHA-1 certificate
+             
+             Note: AndroidManifest.xml cannot read from .env directly, so manual update is required.
         -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="GOOGLE_MAPS_API_KEY_PLACEHOLDER" />
+            android:value="AIzaSyA8DZOuqInPqkBI8x-VXLgGGB_OZ6qEoBE" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

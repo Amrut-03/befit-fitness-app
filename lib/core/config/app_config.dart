@@ -12,8 +12,7 @@ class AppConfig {
   
   // API Configuration - Load from .env file
   static String get geminiApiKey => 
-      dotenv.env['GEMINI_API_KEY'] ?? 
-      'AIzaSyB-CEcXIi8Dgj7Mk0BZ3QuA661Xu21TUxM'; // Fallback for development
+      dotenv.env['GEMINI_API_KEY']!; // Fallback for development
   
   static String get googleMapsApiKey => 
       dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 
