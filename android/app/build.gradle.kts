@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -27,10 +29,27 @@ android {
         applicationId = "com.befit_fitness.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Read Google Maps API key from local.properties
+        val mapsApiKey = run {
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.exists()) {
+                val props = Properties()
+                localPropertiesFile.inputStream().use { stream ->
+                    props.load(stream)
+                }
+                props.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
+            } else {
+                ""
+            }
+        }
+        
+        // Set manifest placeholders
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
