@@ -17,9 +17,7 @@ class GetFitnessDataWithPermissionsUseCase {
     required this.requestPermissionsUseCase,
   });
 
-  /// Fetch fitness data for a specific date, requesting permissions if needed
   Future<Either<FitnessFailure, FitnessData>> call(DateTime date) async {
-    // Check permissions first
     final hasPermissionsResult = await repository.hasPermissions();
     
     bool hasPermissions = false;
@@ -28,7 +26,6 @@ class GetFitnessDataWithPermissionsUseCase {
       (hasPerms) => hasPermissions = hasPerms,
     );
 
-    // If no permissions, try to request them
     if (!hasPermissions) {
       final permissionResult = await requestPermissionsUseCase();
       
@@ -39,16 +36,12 @@ class GetFitnessDataWithPermissionsUseCase {
             return const Left(PermissionDeniedFailure());
           }
           
-          // Wait a bit for Health Connect to register the app
           await Future.delayed(const Duration(seconds: 2));
-          
-          // Now try to fetch data
           return await getFitnessDataUseCase(date);
         },
       );
     }
 
-    // If we have permissions, fetch data directly
     return await getFitnessDataUseCase(date);
   }
 }

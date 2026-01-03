@@ -3,7 +3,11 @@ import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/usecase/save_user_profile_usecase.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -37,11 +41,38 @@ class _ProfileOnboardingScreen3State extends State<ProfileOnboardingScreen3> {
     setState(() => _isSaving = true);
 
     try {
+      // Save complete profile with isProfileComplete: true
       final saveProfileUseCase = getIt<SaveUserProfileUseCase>();
       await saveProfileUseCase(profile);
 
+      // Verify the profile was saved before navigating
+      // This prevents the router redirect from sending us back to onboarding
+      final profileRepository = getIt<UserProfileRepository>();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        // Wait and verify the data is written
+        bool isComplete = false;
+        int retries = 0;
+        while (!isComplete && retries < 10) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          isComplete = await profileRepository.isProfileComplete(firebaseUser.uid);
+          retries++;
+        }
+      }
+
+      // Check if permissions are already granted
+      final permissionService = PermissionService();
+      final arePermissionsGranted = await permissionService.areAllPermissionsGranted();
+
+      // Navigate to permissions screen if not granted, otherwise go to home
       if (mounted) {
-        context.go(HomePage.route);
+        if (arePermissionsGranted) {
+          // Permissions already granted, go to home
+          context.go(HomePage.route);
+        } else {
+          // Navigate to permissions screen first
+          context.go(PermissionsScreen.route);
+        }
       }
     } catch (e) {
       if (mounted) {

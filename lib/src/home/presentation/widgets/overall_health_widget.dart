@@ -90,7 +90,22 @@ class _OverallHealthWidgetState extends State<OverallHealthWidget> {
                   ),
                 ),
               ),
-              // Tooltip
+                Align(
+                  alignment: Alignment.center,
+                  child: CustomPaint(
+                      size: Size(arcSizeValue, arcSizeValue),
+                      painter: ConcentricArcsPainter(
+                        innerSweepAngle: stepsSweepAngle,
+                        middleSweepAngle: caloriesSweepAngle,
+                        outerSweepAngle: moveMinSweepAngle,
+                        innerColor: widget.innerColor,
+                        middleColor: widget.middleColor,
+                        outerColor: widget.outerColor,
+                        strokeWidth: widget.strokeWidth,
+                      ),
+                    ),
+                ),
+                // Tooltip
               if (_showTooltip)
                 Positioned(
                   top: 40.h,
@@ -120,21 +135,6 @@ class _OverallHealthWidgetState extends State<OverallHealthWidget> {
                       ],
                     ),
                   ),
-                ),
-                Align(
-                  alignment: Alignment.center,
-                  child: CustomPaint(
-                      size: Size(arcSizeValue, arcSizeValue),
-                      painter: ConcentricArcsPainter(
-                        innerSweepAngle: stepsSweepAngle,
-                        middleSweepAngle: caloriesSweepAngle,
-                        outerSweepAngle: moveMinSweepAngle,
-                        innerColor: widget.innerColor,
-                        middleColor: widget.middleColor,
-                        outerColor: widget.outerColor,
-                        strokeWidth: widget.strokeWidth,
-                      ),
-                    ),
                 ),
                 // Blur overlay when all values are empty
                 if (isEmpty)

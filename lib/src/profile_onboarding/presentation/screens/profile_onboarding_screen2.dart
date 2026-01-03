@@ -1,7 +1,10 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +24,7 @@ class _ProfileOnboardingScreen2State extends State<ProfileOnboardingScreen2> {
   String? _selectedWorkoutType;
   String? _selectedPurpose;
   UserProfile? _profile;
+  bool _isSaving = false;
 
   final List<String> _workoutTypes = [
     'Cardio',
@@ -61,15 +65,42 @@ class _ProfileOnboardingScreen2State extends State<ProfileOnboardingScreen2> {
 
   bool get _isValid => _selectedWorkoutType != null && _selectedPurpose != null;
 
-  void _onNext() {
+  Future<void> _onNext() async {
     if (!_isValid) return;
 
-    final profile = (_profile ?? const UserProfile()).copyWith(
-      workoutType: _selectedWorkoutType,
-      purpose: _selectedPurpose,
-    );
+    setState(() => _isSaving = true);
 
-    context.push(ProfileOnboardingScreen3.route, extra: profile);
+    try {
+      final profile = (_profile ?? const UserProfile()).copyWith(
+        workoutType: _selectedWorkoutType,
+        purpose: _selectedPurpose,
+        isProfileComplete: false, // Set to false for partial save
+      );
+
+      // Save partial profile to Firebase with isProfileComplete: false
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final profileRepository = getIt<UserProfileRepository>();
+        await profileRepository.savePartialUserProfile(
+          userId: firebaseUser.uid,
+          profile: profile,
+        );
+      }
+
+      if (mounted) {
+        context.push(ProfileOnboardingScreen3.route, extra: profile);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -231,11 +262,11 @@ class _ProfileOnboardingScreen2State extends State<ProfileOnboardingScreen2> {
                   iconSize: 20.w,
                   width: 10.w,
                   onPressed: () {
-                    if (!_isValid) return;
+                    if (!_isValid || _isSaving) return;
                     _onNext();
                   },
                   backgroundColor: _isValid ? AppColors.primary : Colors.grey,
-                  isLoading: false,
+                  isLoading: _isSaving,
                 ),
               ),
             ],

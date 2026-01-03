@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 
 class PermissionsScreen extends StatefulWidget {
@@ -22,8 +25,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   int _currentStep = 0;
   final List<String> _steps = [
     'Android Permissions',
-    'Checking Health Connect',
-    'Registering with Health Connect',
+    'Checking Google Fit',
+    'Registering with Google Fit',
     'Requesting Permissions',
     'Verifying Connection',
   ];
@@ -59,61 +62,46 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         return;
       }
 
-      // Step 2: Check if Health Connect is available
+      // Step 2: Check if Google Fit is available
       _currentStep = 1;
       setState(() {
-        _statusMessage = 'Checking Health Connect availability...';
+        _statusMessage = 'Checking Google Fit availability...';
       });
       
-      final isHealthConnectAvailable = await _permissionService.isHealthConnectAvailable();
-      if (!isHealthConnectAvailable) {
-        setState(() {
-          _statusMessage = 'Health Connect may not be installed. Please install it from Play Store.';
-          _isLoading = false;
-        });
-        _showHealthConnectNotInstalledDialog();
-        return;
-      }
-      
-      // Step 3: Register with Health Connect first (critical step)
+      // Step 3: Request Google Fit permissions
       _currentStep = 2;
       setState(() {
-        _statusMessage = 'Registering app with Health Connect...';
+        _statusMessage = 'Requesting Google Fit permissions...';
       });
       
-      // Try to register first - this is critical for Health Connect to recognize the app
-      await _permissionService.tryRegisterWithHealthConnect();
+      // This will use Google Fit OAuth to request permissions
+      final googleFitGranted = await _permissionService.requestGoogleFitPermissions();
       
-      // Wait a moment for Health Connect to process
-      await Future.delayed(const Duration(milliseconds: 1000));
-      
-      // Step 4: Request Health Connect permissions
-      _currentStep = 3;
-      setState(() {
-        _statusMessage = 'Requesting Health Connect permissions...';
-      });
-      
-      final healthConnectGranted = await _permissionService.requestHealthConnectPermissions();
-      
-      if (!healthConnectGranted) {
+      if (!googleFitGranted) {
         setState(() {
-          _statusMessage = 'Health Connect permissions need to be granted manually.';
+          _statusMessage = 'Google Fit setup failed. Please try again.';
           _isLoading = false;
         });
-        _showHealthConnectManualDialog();
+        // Check if Google Fit is available
+        final isAvailable = await _permissionService.isGoogleFitAvailable();
+        if (!isAvailable) {
+          _showGoogleFitNotInstalledDialog();
+        } else {
+          _showGoogleFitManualDialog();
+        }
         return;
       }
 
-      // Step 5: Verify connection to Health Connect
+      // Step 5: Verify connection to Google Fit
       _currentStep = 4;
       setState(() {
-        _statusMessage = 'Verifying Health Connect connection...';
+        _statusMessage = 'Verifying Google Fit connection...';
       });
       
       // Wait a moment before verification
       await Future.delayed(const Duration(milliseconds: 500));
       
-      final connected = await _permissionService.connectToHealthConnect();
+      final connected = await _permissionService.connectToGoogleFit();
       
       if (connected) {
         setState(() {
@@ -124,14 +112,32 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         await Future.delayed(const Duration(seconds: 1));
         
         if (mounted) {
-          context.go(HomePage.route);
+          // Verify profile is complete before navigating (should be true at this point)
+          // This ensures the router won't redirect us back to onboarding
+          final profileRepository = getIt<UserProfileRepository>();
+          final firebaseUser = FirebaseAuth.instance.currentUser;
+          if (firebaseUser != null) {
+            // Retry checking profile completion to ensure it's saved
+            bool isComplete = false;
+            for (int i = 0; i < 5; i++) {
+              await Future.delayed(const Duration(milliseconds: 200));
+              isComplete = await profileRepository.isProfileComplete(firebaseUser.uid);
+              if (isComplete) break;
+            }
+            
+            // Navigate to home with query parameter to indicate we're coming from permissions
+            // Even if check fails, navigate anyway since we know profile should be complete
+            context.go('${HomePage.route}?fromPermissions=true');
+          } else {
+            context.go('${HomePage.route}?fromPermissions=true');
+          }
         }
       } else {
         setState(() {
-          _statusMessage = 'Please grant permissions manually in Health Connect.';
+          _statusMessage = 'Please grant permissions manually in Google Fit.';
           _isLoading = false;
         });
-        _showHealthConnectManualDialog();
+        _showGoogleFitManualDialog();
       }
     } catch (e) {
       setState(() {
@@ -171,7 +177,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             onPressed: () {
               Navigator.of(context).pop();
               // Continue anyway
-              context.go(HomePage.route);
+              context.go('${HomePage.route}?fromPermissions=true');
             },
             child: const Text('Skip'),
           ),
@@ -180,36 +186,30 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     );
   }
 
-  void _showHealthConnectNotInstalledDialog() {
+  void _showGoogleFitNotInstalledDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Health Connect Required'),
+        title: const Text('Google Fit Required'),
         content: const Text(
-          'Health Connect is required to track your fitness data.\n\n'
-          'Please install Health Connect from the Google Play Store:\n\n'
-          '1. Tap "Open Play Store" below\n'
-          '2. Install Health Connect\n'
-          '3. Return to this app and try again\n\n'
-          'Health Connect is Google\'s platform for managing health and fitness data.',
+          'Google Fit is required to track your fitness data.\n\n'
+          'Please ensure Google Play Services is installed and up to date.\n\n'
+          'Google Fit uses Google Play Services to access your health data.',
         ),
         actions: [
           TextButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              await _permissionService.openHealthConnect();
-              // Wait and retry
-              Future.delayed(const Duration(seconds: 2), () {
-                _requestAllPermissions();
-              });
+              // Try requesting permissions again (Google Fit OAuth)
+              _requestAllPermissions();
             },
-            child: const Text('Open Play Store'),
+            child: const Text('Try Again'),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              context.go(HomePage.route);
+              context.go('${HomePage.route}?fromPermissions=true');
             },
             child: const Text('Skip'),
           ),
@@ -218,52 +218,160 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     );
   }
 
-  void _showHealthConnectManualDialog() {
+  void _showGoogleFitManualDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Health Connect Setup'),
+        title: const Text('Grant Google Fit Permissions'),
         content: const Text(
-          'The app needs to be registered with Health Connect.\n\n'
-          'IMPORTANT: Sometimes the app needs a device restart to appear in Health Connect.\n\n'
-          'Try these steps:\n\n'
-          '1. Tap "Try to Register" below\n'
-          '2. If that doesn\'t work, tap "Open Health Connect"\n'
-          '3. Go to "Data and access" > "App permissions"\n'
-          '4. Look for "befit_fitness_app" or "Befit"\n'
-          '5. If not found, restart your device and try again\n'
-          '6. Grant permissions for:\n'
-          '   - Steps\n'
-          '   - Active energy burned',
+          'The app uses Google Fit to access your health data.\n\n'
+          'Please follow these steps:\n\n'
+          '1. Tap "Grant Permissions" below\n'
+          '2. Sign in with your Google account if prompted\n'
+          '3. Grant permissions for:\n'
+          '   • Steps (read & write)\n'
+          '   • Active energy burned (read & write)\n'
+          '   • Distance (read & write)\n'
+          '   • Heart rate (read & write)\n'
+          '4. Return to this app and tap "Check Permissions"\n\n'
+          'Note: This uses Google Fit OAuth for authentication.',
         ),
         actions: [
           TextButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              await _permissionService.tryRegisterWithHealthConnect();
-              await _permissionService.openHealthConnect();
-              // Wait and retry
-              Future.delayed(const Duration(seconds: 3), () {
-                _requestAllPermissions();
+              // Request Google Fit permissions (OAuth)
+              setState(() {
+                _isLoading = true;
+                _statusMessage = 'Requesting Google Fit permissions...';
               });
+              final granted = await _permissionService.requestGoogleFitPermissions();
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+                if (granted) {
+                  // Permissions granted, check connection
+                  _requestAllPermissions();
+                } else {
+                  // Show check dialog
+                  _showCheckPermissionsDialog();
+                }
+              }
             },
-            child: const Text('Try to Register'),
+            child: const Text('Grant Permissions'),
           ),
           TextButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              await _permissionService.openHealthConnect();
+              // Check if permissions are now granted
+              setState(() {
+                _isLoading = true;
+                _statusMessage = 'Checking permissions...';
+              });
+              
+              final areGranted = await _permissionService.areAllPermissionsGranted();
+              
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+                
+                if (areGranted) {
+                  // Permissions granted, continue
+                  _requestAllPermissions();
+                } else {
+                  // Still not granted, show manual dialog again
+                  _showGoogleFitManualDialog();
+                }
+              }
             },
-            child: const Text('Open Health Connect'),
+            child: const Text('Check Permissions'),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
               // Continue anyway
-              context.go(HomePage.route);
+              context.go('${HomePage.route}?fromPermissions=true');
             },
             child: const Text('Skip'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCheckPermissionsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        title: const Text('Check Permissions'),
+        content: const Text(
+          'Have you granted permissions in Google Fit?\n\n'
+          'Tap "Yes" to verify, or "No" to try again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              // Check if permissions are now granted
+              setState(() {
+                _isLoading = true;
+                _statusMessage = 'Checking permissions...';
+              });
+              
+              final areGranted = await _permissionService.areAllPermissionsGranted();
+              
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+                
+                if (areGranted) {
+                  // Permissions granted, continue with connection
+                  setState(() {
+                    _statusMessage = 'Permissions granted! Verifying connection...';
+                    _isLoading = true;
+                  });
+                  
+                  final connected = await _permissionService.connectToGoogleFit();
+                  
+                  if (mounted) {
+                    if (connected) {
+                      setState(() {
+                        _statusMessage = 'All permissions granted! Connecting...';
+                      });
+                      
+                      await Future.delayed(const Duration(seconds: 1));
+                      
+                      if (mounted) {
+                        context.go('${HomePage.route}?fromPermissions=true');
+                      }
+                    } else {
+                      setState(() {
+                        _statusMessage = 'Please grant all required permissions.';
+                        _isLoading = false;
+                      });
+                      _showGoogleFitManualDialog();
+                    }
+                  }
+                } else {
+                  // Still not granted
+                  _showGoogleFitManualDialog();
+                }
+              }
+            },
+            child: const Text('Yes'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              // Try requesting permissions again
+              _requestAllPermissions();
+            },
+            child: const Text('No, Try Again'),
           ),
         ],
       ),
@@ -287,7 +395,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              context.go(HomePage.route);
+              context.go('${HomePage.route}?fromPermissions=true');
             },
             child: const Text('Skip'),
           ),

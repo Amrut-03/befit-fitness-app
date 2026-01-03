@@ -2,7 +2,6 @@ import 'package:get_it/get_it.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:health/health.dart';
 import 'package:befit_fitness_app/src/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:befit_fitness_app/src/auth/data/repositories/auth_repository_impl.dart';
 import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
@@ -136,21 +135,10 @@ Future<void> initDependencyInjection() async {
   );
 
 
-  // Google Fit - Health instance
-  // The health package automatically uses Health Connect on Android if available
-  getIt.registerLazySingleton<Health>(
-    () => Health(),
-  );
-  
-  // Configure Health instance - required before use
-  // This must be called before any health operations
-  final health = getIt<Health>();
-  await health.configure();
-
-  // Google Fit Data Source
+  // Google Fit Data Source - Uses REST API directly
   getIt.registerLazySingleton<GoogleFitDataSource>(
     () => GoogleFitDataSourceImpl(
-      health: getIt<Health>(),
+      googleSignIn: getIt<GoogleSignIn>(),
     ),
   );
 

@@ -9,8 +9,8 @@ class GetUserProfileUseCase {
 
   GetUserProfileUseCase(this.repository);
 
-  Future<Either<Failure, UserProfile>> call(String email) {
-    return repository.getUserProfile(email);
+  Future<Either<Failure, UserProfile>> call(String userId) {
+    return repository.getUserProfile(userId);
   }
 }
 

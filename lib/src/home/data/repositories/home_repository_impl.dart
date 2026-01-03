@@ -12,9 +12,9 @@ class HomeRepositoryImpl implements HomeRepository {
   HomeRepositoryImpl(this.remoteDataSource);
 
   @override
-  Future<Either<Failure, HealthMetrics>> getHealthMetrics(String email) async {
+  Future<Either<Failure, HealthMetrics>> getHealthMetrics(String userId) async {
     try {
-      final healthMetrics = await remoteDataSource.getHealthMetrics(email);
+      final healthMetrics = await remoteDataSource.getHealthMetrics(userId);
       return Right(healthMetrics);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -22,9 +22,9 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<Either<Failure, UserProfile>> getUserProfile(String email) async {
+  Future<Either<Failure, UserProfile>> getUserProfile(String userId) async {
     try {
-      final userProfile = await remoteDataSource.getUserProfile(email);
+      final userProfile = await remoteDataSource.getUserProfile(userId);
       return Right(userProfile);
     } catch (e) {
       return Left(ServerFailure(e.toString()));

@@ -6,9 +6,9 @@ import 'package:befit_fitness_app/src/home/domain/entities/user_profile.dart';
 /// Repository interface for home data operations
 abstract class HomeRepository {
   /// Fetch health metrics for a user
-  Future<Either<Failure, HealthMetrics>> getHealthMetrics(String email);
+  Future<Either<Failure, HealthMetrics>> getHealthMetrics(String userId);
 
   /// Fetch user profile information
-  Future<Either<Failure, UserProfile>> getUserProfile(String email);
+  Future<Either<Failure, UserProfile>> getUserProfile(String userId);
 }
 

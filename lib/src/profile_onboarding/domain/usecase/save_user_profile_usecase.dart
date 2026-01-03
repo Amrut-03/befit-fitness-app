@@ -8,29 +8,31 @@ class SaveUserProfileUseCase {
 
   SaveUserProfileUseCase(this.profileRepository);
 
-  /// Save complete user profile
+  /// Save complete user profile (with isProfileComplete set to true)
   Future<void> call(UserProfile profile) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw Exception('User not authenticated');
     }
 
-    // Save complete profile
+    // Save complete profile with isProfileComplete: true
     final completeProfile = profile.copyWith(isProfileComplete: true);
-    final documentId = (user.email ?? user.uid).toLowerCase();
 
     await profileRepository.saveUserProfile(
       userId: user.uid,
-      documentId: documentId,
       profile: completeProfile,
     );
 
-    // Update auth user info (email and photoUrl)
+    // Update auth user info (email, photoUrl, and authProvider)
+    final authProvider = user.providerData.isNotEmpty 
+        ? user.providerData.first.providerId 
+        : 'email';
+    
     await profileRepository.updateAuthUserInfo(
-      documentId: documentId,
       userId: user.uid,
       email: user.email,
       photoUrl: user.photoURL,
+      authProvider: authProvider,
     );
   }
 }

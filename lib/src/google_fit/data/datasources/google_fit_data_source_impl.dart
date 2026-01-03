@@ -1,130 +1,53 @@
 import 'package:flutter/foundation.dart';
-import 'package:health/health.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:befit_fitness_app/src/google_fit/data/datasources/google_fit_data_source.dart';
+import 'package:befit_fitness_app/src/google_fit/data/datasources/google_fit_rest_client.dart';
 import 'package:befit_fitness_app/src/google_fit/domain/entities/fitness_data.dart';
 
-/// Implementation of Google Fit data source using the health package
+/// Implementation of Google Fit data source using REST API
 class GoogleFitDataSourceImpl implements GoogleFitDataSource {
-  final Health health;
+  final GoogleFitRestClient _restClient;
+  final GoogleSignIn _googleSignIn;
 
-  // Define the types of health data we want to access
-  static const List<HealthDataType> types = [
-    HealthDataType.STEPS,
-    HealthDataType.DISTANCE_DELTA,
-    HealthDataType.ACTIVE_ENERGY_BURNED,
-    HealthDataType.HEART_RATE,
-    HealthDataType.WEIGHT,
-    HealthDataType.HEIGHT,
-  ];
+  // Google Fit data type names
+  static const String _dataTypeSteps = 'com.google.step_count.delta';
+  static const String _dataTypeDistance = 'com.google.distance.delta';
+  static const String _dataTypeCalories = 'com.google.calories.expended';
+  static const String _dataTypeHeartRate = 'com.google.heart_rate.bpm';
+  static const String _dataTypeWeight = 'com.google.weight';
+  static const String _dataTypeHeight = 'com.google.height';
+  static const String _dataTypeActiveMinutes = 'com.google.active_minutes';
 
-  GoogleFitDataSourceImpl({required this.health});
+  GoogleFitDataSourceImpl({
+    required GoogleSignIn googleSignIn,
+    GoogleFitRestClient? restClient,
+  })  : _googleSignIn = googleSignIn,
+        _restClient = restClient ?? GoogleFitRestClient(googleSignIn: googleSignIn);
 
   @override
   Future<bool> isAvailable() async {
     try {
-      final result = await health.hasPermissions(types);
-      return result ?? false;
-    } catch (e) {
-      return false;
-    }
-  }
+      final account = await _googleSignIn.signInSilently();
+      if (account == null) return false;
 
-  /// Debug method to fetch and display ALL available health data
-  Future<void> debugAllHealthData() async {
-    try {
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('🔍 HEALTH CONNECT DEBUG - ALL AVAILABLE DATA');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
-      final weekAgo = now.subtract(const Duration(days: 7));
-      
-      debugPrint('📅 Today: $now');
-      debugPrint('⏰ Today Range: $startOfDay to $endOfDay');
-      debugPrint('⏰ Week Range: $weekAgo to $now');
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      // Check permissions for all types
-      debugPrint('🔐 Checking permissions...');
-      for (var type in types) {
-        try {
-          final hasPerm = await health.hasPermissions([type]);
-          debugPrint('   $type: ${hasPerm ?? false ? "✅ Granted" : "❌ Denied"}');
-        } catch (e) {
-          debugPrint('   $type: ❌ Error - $e');
-        }
-      }
-      
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      debugPrint('📊 Fetching all data types...');
-      
-      // Fetch all data types
-      for (var type in types) {
-        try {
-          debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-          debugPrint('📈 Fetching: $type');
-          
-          final data = await health.getHealthDataFromTypes(
-            types: [type],
-            startTime: weekAgo,
-            endTime: now,
-          );
-          
-          debugPrint('   Found ${data.length} data points');
-          
-          if (data.isNotEmpty) {
-            // Show first 5 entries
-            final entriesToShow = data.length > 5 ? 5 : data.length;
-            for (int i = 0; i < entriesToShow; i++) {
-              final entry = data[i];
-              debugPrint('   Entry ${i + 1}:');
-              debugPrint('      Value: ${entry.value}');
-              debugPrint('      Date: ${entry.dateFrom} to ${entry.dateTo}');
-              debugPrint('      Source: ${entry.sourceName}');
-              debugPrint('      Platform: ${entry.sourcePlatform}');
-            }
-            if (data.length > 5) {
-              debugPrint('   ... and ${data.length - 5} more entries');
-            }
-          } else {
-            debugPrint('   ⚠️  No data found');
-          }
-        } catch (e) {
-          debugPrint('   ❌ Error fetching $type: $e');
-        }
-      }
-      
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('✅ Debug complete!');
-      debugPrint('═══════════════════════════════════════════════════════════');
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR in debugAllHealthData: $e');
-      debugPrint('Stack trace: $stackTrace');
+      final auth = await account.authentication;
+      return auth.accessToken != null;
+    } catch (e) {
+      debugPrint('GoogleFitDataSourceImpl: Error checking availability: $e');
+      return false;
     }
   }
 
   @override
   Future<bool> requestPermissions() async {
     try {
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('🔐 HEALTH CONNECT DEBUG - REQUESTING PERMISSIONS');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('📝 Requesting permissions for data types:');
-      for (var type in types) {
-        debugPrint('   - $type');
-      }
-      
-      final result = await health.requestAuthorization(types);
-      
-      debugPrint('✅ Permission Request Result: $result');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      
-      return result;
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR requesting permissions: $e');
-      debugPrint('Stack trace: $stackTrace');
+      final account = await _googleSignIn.signIn();
+      if (account == null) return false;
+
+      final auth = await account.authentication;
+      return auth.accessToken != null;
+    } catch (e) {
+      debugPrint('GoogleFitDataSource: Error requesting permissions: $e');
       return false;
     }
   }
@@ -132,25 +55,74 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
   @override
   Future<bool> hasPermissions() async {
     try {
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('🔐 HEALTH CONNECT DEBUG - PERMISSION CHECK');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('🔍 Checking permissions for data types:');
-      for (var type in types) {
-        debugPrint('   - $type');
-      }
-      
-      final result = await health.hasPermissions(types);
-      final hasPerms = result ?? false;
-      
-      debugPrint('✅ Permission Status: $hasPerms');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      
-      return hasPerms;
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR checking permissions: $e');
-      debugPrint('Stack trace: $stackTrace');
+      final account = await _googleSignIn.signInSilently();
+      if (account == null) return false;
+
+      final auth = await account.authentication;
+      return auth.accessToken != null;
+    } catch (e) {
+      debugPrint('GoogleFitDataSource: Error checking permissions: $e');
       return false;
+    }
+  }
+
+  /// Extract value from aggregated bucket
+  int _extractIntValue(Map<String, dynamic> bucket) {
+    try {
+      final dataset = bucket['dataset'] as List<dynamic>?;
+      if (dataset == null || dataset.isEmpty) return 0;
+
+      int total = 0;
+      for (var data in dataset) {
+        final point = data['point'] as List<dynamic>?;
+        if (point == null || point.isEmpty) continue;
+
+        for (var p in point) {
+          final value = p['value'] as List<dynamic>?;
+          if (value == null || value.isEmpty) continue;
+
+          for (var v in value) {
+            if (v['intVal'] != null) {
+              total += (v['intVal'] as num).toInt();
+            }
+          }
+        }
+      }
+      return total;
+    } catch (e) {
+      debugPrint('Error extracting int value: $e');
+      return 0;
+    }
+  }
+
+  /// Extract float value from aggregated bucket
+  double _extractFloatValue(Map<String, dynamic> bucket) {
+    try {
+      final dataset = bucket['dataset'] as List<dynamic>?;
+      if (dataset == null || dataset.isEmpty) return 0.0;
+
+      double total = 0.0;
+      for (var data in dataset) {
+        final point = data['point'] as List<dynamic>?;
+        if (point == null || point.isEmpty) continue;
+
+        for (var p in point) {
+          final value = p['value'] as List<dynamic>?;
+          if (value == null || value.isEmpty) continue;
+
+          for (var v in value) {
+            if (v['fpVal'] != null) {
+              total += (v['fpVal'] as num).toDouble();
+            } else if (v['intVal'] != null) {
+              total += (v['intVal'] as num).toDouble();
+            }
+          }
+        }
+      }
+      return total;
+    } catch (e) {
+      debugPrint('Error extracting float value: $e');
+      return 0.0;
     }
   }
 
@@ -160,61 +132,23 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('🏃 HEALTH CONNECT DEBUG - STEPS DATA');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('📅 Date: $date');
-      debugPrint('⏰ Time Range: $startOfDay to $endOfDay');
-      debugPrint('🔍 Fetching steps data...');
-
-      final steps = await health.getHealthDataFromTypes(
-        types: [HealthDataType.STEPS],
+      final data = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeSteps,
         startTime: startOfDay,
         endTime: endOfDay,
       );
 
-      debugPrint('📊 Total data points retrieved: ${steps.length}');
-
-      if (steps.isEmpty) {
-        debugPrint('⚠️  No steps data found for this date');
-        debugPrint('═══════════════════════════════════════════════════════════');
-        return null;
-      }
+      final bucket = data['bucket'] as List<dynamic>?;
+      if (bucket == null || bucket.isEmpty) return null;
 
       int totalSteps = 0;
-      int index = 0;
-      
-      for (var step in steps) {
-        index++;
-        final value = (step.value as NumericHealthValue).numericValue.toInt();
-        totalSteps += value;
-        
-        debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        debugPrint('📈 Step Entry #$index:');
-        debugPrint('   Value: $value steps');
-        debugPrint('   UUID: ${step.uuid}');
-        debugPrint('   Type: ${step.type}');
-        debugPrint('   Unit: ${step.unit}');
-        debugPrint('   Date From: ${step.dateFrom}');
-        debugPrint('   Date To: ${step.dateTo}');
-        debugPrint('   Source Platform: ${step.sourcePlatform}');
-        debugPrint('   Source Device ID: ${step.sourceDeviceId}');
-        debugPrint('   Source ID: ${step.sourceId}');
-        debugPrint('   Source Name: ${step.sourceName}');
-        debugPrint('   Recording Method: ${step.recordingMethod}');
-        if (step.workoutSummary != null) {
-          debugPrint('   Workout Summary: ${step.workoutSummary}');
-        }
+      for (var b in bucket) {
+        totalSteps += _extractIntValue(b as Map<String, dynamic>);
       }
-      
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      debugPrint('✅ Total Steps: $totalSteps');
-      debugPrint('═══════════════════════════════════════════════════════════');
 
       return totalSteps;
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR fetching steps: $e');
-      debugPrint('Stack trace: $stackTrace');
+    } catch (e) {
+      debugPrint('GoogleFitDataSource: Error fetching steps: $e');
       return null;
     }
   }
@@ -222,19 +156,23 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
   @override
   Future<int> getStepsInRange(DateTime startDate, DateTime endDate) async {
     try {
-      final steps = await health.getHealthDataFromTypes(
-        types: [HealthDataType.STEPS],
+      final data = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeSteps,
         startTime: startDate,
         endTime: endDate,
       );
 
+      final bucket = data['bucket'] as List<dynamic>?;
+      if (bucket == null || bucket.isEmpty) return 0;
+
       int totalSteps = 0;
-      for (var step in steps) {
-        totalSteps += (step.value as NumericHealthValue).numericValue.toInt();
+      for (var b in bucket) {
+        totalSteps += _extractIntValue(b as Map<String, dynamic>);
       }
 
       return totalSteps;
     } catch (e) {
+      debugPrint('Error fetching steps in range: $e');
       return 0;
     }
   }
@@ -245,82 +183,47 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('📏 HEALTH CONNECT DEBUG - DISTANCE DATA');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('📅 Date: $date');
-      debugPrint('⏰ Time Range: $startOfDay to $endOfDay');
-      debugPrint('🔍 Fetching distance data...');
-
-      final distance = await health.getHealthDataFromTypes(
-        types: [HealthDataType.DISTANCE_DELTA],
+      final data = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeDistance,
         startTime: startOfDay,
         endTime: endOfDay,
       );
 
-      debugPrint('📊 Total data points retrieved: ${distance.length}');
+      final bucket = data['bucket'] as List<dynamic>?;
+      if (bucket == null || bucket.isEmpty) return null;
 
-      if (distance.isEmpty) {
-        debugPrint('⚠️  No distance data found for this date');
-        debugPrint('═══════════════════════════════════════════════════════════');
-        return null;
+      double totalDistance = 0.0;
+      for (var b in bucket) {
+        totalDistance += _extractFloatValue(b as Map<String, dynamic>);
       }
 
-      double totalDistance = 0;
-      int index = 0;
-      
-      for (var dist in distance) {
-        index++;
-        final value = (dist.value as NumericHealthValue).numericValue.toDouble();
-        totalDistance += value;
-        
-        debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        debugPrint('📏 Distance Entry #$index:');
-        debugPrint('   Value: ${value.toStringAsFixed(2)} meters');
-        debugPrint('   UUID: ${dist.uuid}');
-        debugPrint('   Type: ${dist.type}');
-        debugPrint('   Unit: ${dist.unit}');
-        debugPrint('   Date From: ${dist.dateFrom}');
-        debugPrint('   Date To: ${dist.dateTo}');
-        debugPrint('   Source Platform: ${dist.sourcePlatform}');
-        debugPrint('   Source Device ID: ${dist.sourceDeviceId}');
-        debugPrint('   Source ID: ${dist.sourceId}');
-        debugPrint('   Source Name: ${dist.sourceName}');
-        debugPrint('   Recording Method: ${dist.recordingMethod}');
-      }
-      
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      debugPrint('✅ Total Distance: ${totalDistance.toStringAsFixed(2)} meters');
-      debugPrint('═══════════════════════════════════════════════════════════');
-
-      return totalDistance; // in meters
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR fetching distance: $e');
-      debugPrint('Stack trace: $stackTrace');
+      return totalDistance;
+    } catch (e) {
+      debugPrint('GoogleFitDataSource: Error fetching distance: $e');
       return null;
     }
   }
 
   @override
-  Future<double> getDistanceInRange(
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
+  Future<double> getDistanceInRange(DateTime startDate, DateTime endDate) async {
     try {
-      final distance = await health.getHealthDataFromTypes(
-        types: [HealthDataType.DISTANCE_DELTA],
+      final data = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeDistance,
         startTime: startDate,
         endTime: endDate,
       );
 
-      double totalDistance = 0;
-      for (var dist in distance) {
-        totalDistance +=
-            (dist.value as NumericHealthValue).numericValue.toDouble();
+      final bucket = data['bucket'] as List<dynamic>?;
+      if (bucket == null || bucket.isEmpty) return 0.0;
+
+      double totalDistance = 0.0;
+      for (var b in bucket) {
+        totalDistance += _extractFloatValue(b as Map<String, dynamic>);
       }
 
       return totalDistance; // in meters
     } catch (e) {
+      debugPrint('Error fetching distance in range: $e');
       return 0.0;
     }
   }
@@ -331,85 +234,47 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('🔥 HEALTH CONNECT DEBUG - CALORIES DATA');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('📅 Date: $date');
-      debugPrint('⏰ Time Range: $startOfDay to $endOfDay');
-      debugPrint('🔍 Fetching calories data...');
-
-      final calories = await health.getHealthDataFromTypes(
-        types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+      final data = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeCalories,
         startTime: startOfDay,
         endTime: endOfDay,
       );
 
-      debugPrint('📊 Total data points retrieved: ${calories.length}');
+      final bucket = data['bucket'] as List<dynamic>?;
+      if (bucket == null || bucket.isEmpty) return null;
 
-      if (calories.isEmpty) {
-        debugPrint('⚠️  No calories data found for this date');
-        debugPrint('═══════════════════════════════════════════════════════════');
-        return null;
+      double totalCalories = 0.0;
+      for (var b in bucket) {
+        totalCalories += _extractFloatValue(b as Map<String, dynamic>);
       }
 
-      double totalCalories = 0;
-      int index = 0;
-      
-      for (var cal in calories) {
-        index++;
-        final value = (cal.value as NumericHealthValue).numericValue.toDouble();
-        totalCalories += value;
-        
-        debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        debugPrint('🔥 Calorie Entry #$index:');
-        debugPrint('   Value: $value kcal');
-        debugPrint('   UUID: ${cal.uuid}');
-        debugPrint('   Type: ${cal.type}');
-        debugPrint('   Unit: ${cal.unit}');
-        debugPrint('   Date From: ${cal.dateFrom}');
-        debugPrint('   Date To: ${cal.dateTo}');
-        debugPrint('   Source Platform: ${cal.sourcePlatform}');
-        debugPrint('   Source Device ID: ${cal.sourceDeviceId}');
-        debugPrint('   Source ID: ${cal.sourceId}');
-        debugPrint('   Source Name: ${cal.sourceName}');
-        debugPrint('   Recording Method: ${cal.recordingMethod}');
-        if (cal.workoutSummary != null) {
-          debugPrint('   Workout Summary: ${cal.workoutSummary}');
-        }
-      }
-      
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      debugPrint('✅ Total Calories: $totalCalories kcal');
-      debugPrint('═══════════════════════════════════════════════════════════');
-
-      return totalCalories; // in kcal
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR fetching calories: $e');
-      debugPrint('Stack trace: $stackTrace');
+      return totalCalories;
+    } catch (e) {
+      debugPrint('GoogleFitDataSource: Error fetching calories: $e');
       return null;
     }
   }
 
   @override
-  Future<double> getCaloriesInRange(
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
+  Future<double> getCaloriesInRange(DateTime startDate, DateTime endDate) async {
     try {
-      final calories = await health.getHealthDataFromTypes(
-        types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+      final data = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeCalories,
         startTime: startDate,
         endTime: endDate,
       );
 
-      double totalCalories = 0;
-      for (var cal in calories) {
-        totalCalories +=
-            (cal.value as NumericHealthValue).numericValue.toDouble();
+      final bucket = data['bucket'] as List<dynamic>?;
+      if (bucket == null || bucket.isEmpty) return 0.0;
+
+      double totalCalories = 0.0;
+      for (var b in bucket) {
+        totalCalories += _extractFloatValue(b as Map<String, dynamic>);
       }
 
       return totalCalories; // in kcal
     } catch (e) {
+      debugPrint('Error fetching calories in range: $e');
       return 0.0;
     }
   }
@@ -420,54 +285,59 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('❤️  HEALTH CONNECT DEBUG - HEART RATE DATA');
-      debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('📅 Date: $date');
-      debugPrint('⏰ Time Range: $startOfDay to $endOfDay');
-      debugPrint('🔍 Fetching heart rate data...');
+      final dataSources = await _restClient.getDataSources(dataTypeName: _dataTypeHeartRate);
+      if (dataSources.isEmpty) return null;
 
-      final heartRate = await health.getHealthDataFromTypes(
-        types: [HealthDataType.HEART_RATE],
-        startTime: startOfDay,
-        endTime: endOfDay,
-      );
+      double? latestHeartRate;
+      DateTime? latestTime;
 
-      debugPrint('📊 Total data points retrieved: ${heartRate.length}');
+      for (var ds in dataSources) {
+        try {
+          final dataSourceId = ds['dataStreamId'] ?? ds['dataSourceId'];
+          if (dataSourceId == null) continue;
+          
+          final dataset = await _restClient.getDataset(
+            dataSourceId: dataSourceId as String,
+            startTime: startOfDay,
+            endTime: endOfDay,
+          );
 
-      if (heartRate.isEmpty) {
-        debugPrint('⚠️  No heart rate data found for this date');
-        debugPrint('═══════════════════════════════════════════════════════════');
-        return null;
-      }
+          final point = dataset['point'] as List<dynamic>?;
+          if (point == null || point.isEmpty) continue;
 
-      // Get the most recent heart rate reading
-      heartRate.sort((a, b) => b.dateTo.compareTo(a.dateTo));
-      final latest = heartRate.first;
-      
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      debugPrint('❤️  All Heart Rate Readings:');
-      int index = 0;
-      for (var hr in heartRate) {
-        index++;
-        final value = (hr.value as NumericHealthValue).numericValue.toDouble();
-        debugPrint('   Reading #$index: $value bpm');
-        debugPrint('      UUID: ${hr.uuid}');
-        debugPrint('      Date From: ${hr.dateFrom}');
-        debugPrint('      Date To: ${hr.dateTo}');
-        debugPrint('      Source: ${hr.sourceName}');
-        if (hr == latest) {
-          debugPrint('      ⭐ (Most Recent)');
+          for (var p in point) {
+            final startTimeNanos = p['startTimeNanos'] as String?;
+            final value = p['value'] as List<dynamic>?;
+            if (value == null || value.isEmpty) continue;
+
+            for (var v in value) {
+              double? hr;
+              if (v['fpVal'] != null) {
+                hr = (v['fpVal'] as num).toDouble();
+              } else if (v['intVal'] != null) {
+                hr = (v['intVal'] as num).toDouble();
+              }
+
+              if (hr != null && startTimeNanos != null) {
+                final time = DateTime.fromMillisecondsSinceEpoch(
+                  int.parse(startTimeNanos) ~/ 1000000,
+                );
+                
+                if (latestTime == null || time.isAfter(latestTime)) {
+                  latestTime = time;
+                  latestHeartRate = hr;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          continue;
         }
       }
-      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      debugPrint('✅ Latest Heart Rate: ${(latest.value as NumericHealthValue).numericValue.toDouble()} bpm');
-      debugPrint('═══════════════════════════════════════════════════════════');
 
-      return (latest.value as NumericHealthValue).numericValue.toDouble();
-    } catch (e, stackTrace) {
-      debugPrint('❌ ERROR fetching heart rate: $e');
-      debugPrint('Stack trace: $stackTrace');
+      return latestHeartRate;
+    } catch (e) {
+      debugPrint('GoogleFitDataSource: Error fetching heart rate: $e');
       return null;
     }
   }
@@ -478,19 +348,58 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final now = DateTime.now();
       final past = now.subtract(const Duration(days: 365)); // Last year
 
-      final weight = await health.getHealthDataFromTypes(
-        types: [HealthDataType.WEIGHT],
-        startTime: past,
-        endTime: now,
-      );
+      final dataSources = await _restClient.getDataSources(dataTypeName: _dataTypeWeight);
+      if (dataSources.isEmpty) return null;
 
-      if (weight.isEmpty) return null;
+      double? latestWeight;
+      DateTime? latestTime;
 
-      // Get the most recent weight reading
-      weight.sort((a, b) => b.dateTo.compareTo(a.dateTo));
-      final latest = weight.first;
-      return (latest.value as NumericHealthValue).numericValue.toDouble();
+      for (var ds in dataSources) {
+        try {
+          final dataSourceId = ds['dataStreamId'] ?? ds['dataSourceId'];
+          if (dataSourceId == null) continue;
+          
+          final dataset = await _restClient.getDataset(
+            dataSourceId: dataSourceId as String,
+            startTime: past,
+            endTime: now,
+          );
+
+          final point = dataset['point'] as List<dynamic>?;
+          if (point == null || point.isEmpty) continue;
+
+          for (var p in point) {
+            final startTimeNanos = p['startTimeNanos'] as String?;
+            final value = p['value'] as List<dynamic>?;
+            if (value == null || value.isEmpty) continue;
+
+            for (var v in value) {
+              double? weight;
+              if (v['fpVal'] != null) {
+                weight = (v['fpVal'] as num).toDouble();
+              } else if (v['intVal'] != null) {
+                weight = (v['intVal'] as num).toDouble();
+              }
+
+              if (weight != null && startTimeNanos != null) {
+                final time = DateTime.fromMillisecondsSinceEpoch(
+                  int.parse(startTimeNanos) ~/ 1000000,
+                );
+                if (latestTime == null || time.isAfter(latestTime)) {
+                  latestTime = time;
+                  latestWeight = weight;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return latestWeight;
     } catch (e) {
+      debugPrint('Error fetching weight: $e');
       return null;
     }
   }
@@ -501,49 +410,118 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final now = DateTime.now();
       final past = now.subtract(const Duration(days: 365)); // Last year
 
-      final height = await health.getHealthDataFromTypes(
-        types: [HealthDataType.HEIGHT],
-        startTime: past,
-        endTime: now,
-      );
+      final dataSources = await _restClient.getDataSources(dataTypeName: _dataTypeHeight);
+      if (dataSources.isEmpty) return null;
 
-      if (height.isEmpty) return null;
+      double? latestHeight;
+      DateTime? latestTime;
 
-      // Get the most recent height reading
-      height.sort((a, b) => b.dateTo.compareTo(a.dateTo));
-      final latest = height.first;
-      return (latest.value as NumericHealthValue).numericValue.toDouble();
+      for (var ds in dataSources) {
+        try {
+          final dataSourceId = ds['dataStreamId'] ?? ds['dataSourceId'];
+          if (dataSourceId == null) continue;
+          
+          final dataset = await _restClient.getDataset(
+            dataSourceId: dataSourceId as String,
+            startTime: past,
+            endTime: now,
+          );
+
+          final point = dataset['point'] as List<dynamic>?;
+          if (point == null || point.isEmpty) continue;
+
+          for (var p in point) {
+            final startTimeNanos = p['startTimeNanos'] as String?;
+            final value = p['value'] as List<dynamic>?;
+            if (value == null || value.isEmpty) continue;
+
+            for (var v in value) {
+              double? height;
+              if (v['fpVal'] != null) {
+                height = (v['fpVal'] as num).toDouble();
+              } else if (v['intVal'] != null) {
+                height = (v['intVal'] as num).toDouble();
+              }
+
+              if (height != null && startTimeNanos != null) {
+                final time = DateTime.fromMillisecondsSinceEpoch(
+                  int.parse(startTimeNanos) ~/ 1000000,
+                );
+                if (latestTime == null || time.isAfter(latestTime)) {
+                  latestTime = time;
+                  latestHeight = height;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return latestHeight;
     } catch (e) {
+      debugPrint('Error fetching height: $e');
       return null;
     }
   }
 
   @override
   Future<FitnessData> getFitnessDataForDate(DateTime date) async {
-    debugPrint('═══════════════════════════════════════════════════════════');
-    debugPrint('📊 HEALTH CONNECT DEBUG - COMPLETE FITNESS DATA');
-    debugPrint('═══════════════════════════════════════════════════════════');
-    debugPrint('📅 Fetching all fitness data for: $date');
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
     final steps = await getSteps(date);
     final distance = await getDistance(date);
     final calories = await getCalories(date);
     final heartRate = await getHeartRate(date);
 
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    debugPrint('📋 SUMMARY - All Fitness Data for $date:');
-    debugPrint('   Steps: ${steps ?? 'N/A'}');
-    debugPrint('   Distance: ${distance != null ? "${distance.toStringAsFixed(2)} meters" : 'N/A'}');
-    debugPrint('   Calories: ${calories != null ? "${calories.toStringAsFixed(2)} kcal" : 'N/A'}');
-    debugPrint('   Heart Rate: ${heartRate != null ? "${heartRate.toStringAsFixed(0)} bpm" : 'N/A'}');
-    debugPrint('═══════════════════════════════════════════════════════════');
+    int? moveMinutes;
+    try {
+      final activeMinutesData = await _restClient.getAggregatedData(
+        dataTypeName: _dataTypeActiveMinutes,
+        startTime: DateTime(date.year, date.month, date.day),
+        endTime: DateTime(date.year, date.month, date.day).add(const Duration(days: 1)),
+      );
+      
+      final activeBuckets = activeMinutesData['bucket'] as List<dynamic>?;
+      if (activeBuckets != null && activeBuckets.isNotEmpty) {
+        int totalMinutes = 0;
+        for (var bucket in activeBuckets) {
+          totalMinutes += _extractIntValue(bucket as Map<String, dynamic>);
+        }
+        moveMinutes = totalMinutes;
+      }
+    } catch (e) {
+      try {
+        final activityData = await _restClient.getAggregatedData(
+          dataTypeName: 'com.google.activity.segment',
+          startTime: DateTime(date.year, date.month, date.day),
+          endTime: DateTime(date.year, date.month, date.day).add(const Duration(days: 1)),
+        );
+        
+        final activityBuckets = activityData['bucket'] as List<dynamic>?;
+        if (activityBuckets != null && activityBuckets.isNotEmpty) {
+          int totalMinutes = 0;
+          for (var bucket in activityBuckets) {
+            final startTime = bucket['startTimeMillis'] as String?;
+            final endTime = bucket['endTimeMillis'] as String?;
+            if (startTime != null && endTime != null) {
+              final start = int.parse(startTime);
+              final end = int.parse(endTime);
+              totalMinutes += ((end - start) / 1000 / 60).round();
+            }
+          }
+          moveMinutes = totalMinutes;
+        }
+      } catch (_) {
+        // Ignore fallback errors
+      }
+    }
 
     return FitnessData(
       steps: steps,
       distance: distance,
       calories: calories,
       heartRate: heartRate,
+      moveMin: moveMinutes,
       date: date,
     );
   }
@@ -560,18 +538,47 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
     // Calculate average heart rate for the range
     double? averageHeartRate;
     try {
-      final heartRates = await health.getHealthDataFromTypes(
-        types: [HealthDataType.HEART_RATE],
-        startTime: startDate,
-        endTime: endDate,
-      );
+      final dataSources = await _restClient.getDataSources(dataTypeName: _dataTypeHeartRate);
+      if (dataSources.isNotEmpty) {
+        List<double> heartRates = [];
+        for (var ds in dataSources) {
+          try {
+            final dataSourceId = ds['dataStreamId'] ?? ds['dataSourceId'];
+            if (dataSourceId == null) continue;
+            
+            final dataset = await _restClient.getDataset(
+              dataSourceId: dataSourceId as String,
+              startTime: startDate,
+              endTime: endDate,
+            );
 
-      if (heartRates.isNotEmpty) {
-        double sum = 0;
-        for (var hr in heartRates) {
-          sum += (hr.value as NumericHealthValue).numericValue.toDouble();
+            final point = dataset['point'] as List<dynamic>?;
+            if (point == null || point.isEmpty) continue;
+
+            for (var p in point) {
+              final value = p['value'] as List<dynamic>?;
+              if (value == null || value.isEmpty) continue;
+
+              for (var v in value) {
+                double? hr;
+                if (v['fpVal'] != null) {
+                  hr = (v['fpVal'] as num).toDouble();
+                } else if (v['intVal'] != null) {
+                  hr = (v['intVal'] as num).toDouble();
+                }
+                if (hr != null) {
+                  heartRates.add(hr);
+                }
+              }
+            }
+          } catch (e) {
+            continue;
+          }
         }
-        averageHeartRate = sum / heartRates.length;
+
+        if (heartRates.isNotEmpty) {
+          averageHeartRate = heartRates.reduce((a, b) => a + b) / heartRates.length;
+        }
       }
     } catch (e) {
       // Ignore errors for average heart rate
@@ -593,10 +600,18 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(hours: 1));
 
-      await health.writeHealthData(
-        value: steps.toDouble(),
-        type: HealthDataType.STEPS,
-        unit: HealthDataUnit.COUNT,
+      final dataSourceId = await _restClient.createOrGetDataSource(
+        dataTypeName: _dataTypeSteps,
+        dataStreamName: 'befit_steps',
+        deviceManufacturer: 'BeFit',
+        deviceModel: 'BeFit App',
+        deviceType: 'phone',
+      );
+
+      await _restClient.writeDataPoint(
+        dataSourceId: dataSourceId,
+        dataTypeName: _dataTypeSteps,
+        value: steps,
         startTime: startOfDay,
         endTime: endOfDay,
       );
@@ -610,10 +625,18 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
     try {
       final endTime = date.add(const Duration(minutes: 1));
 
-      await health.writeHealthData(
+      final dataSourceId = await _restClient.createOrGetDataSource(
+        dataTypeName: _dataTypeHeartRate,
+        dataStreamName: 'befit_heart_rate',
+        deviceManufacturer: 'BeFit',
+        deviceModel: 'BeFit App',
+        deviceType: 'phone',
+      );
+
+      await _restClient.writeFloatDataPoint(
+        dataSourceId: dataSourceId,
+        dataTypeName: _dataTypeHeartRate,
         value: heartRate,
-        type: HealthDataType.HEART_RATE,
-        unit: HealthDataUnit.BEATS_PER_MINUTE,
         startTime: date,
         endTime: endTime,
       );
@@ -627,10 +650,18 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
     try {
       final endTime = date.add(const Duration(minutes: 1));
 
-      await health.writeHealthData(
+      final dataSourceId = await _restClient.createOrGetDataSource(
+        dataTypeName: _dataTypeWeight,
+        dataStreamName: 'befit_weight',
+        deviceManufacturer: 'BeFit',
+        deviceModel: 'BeFit App',
+        deviceType: 'scale',
+      );
+
+      await _restClient.writeFloatDataPoint(
+        dataSourceId: dataSourceId,
+        dataTypeName: _dataTypeWeight,
         value: weight,
-        type: HealthDataType.WEIGHT,
-        unit: HealthDataUnit.KILOGRAM,
         startTime: date,
         endTime: endTime,
       );

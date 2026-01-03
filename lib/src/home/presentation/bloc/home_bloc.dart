@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:befit_fitness_app/src/home/core/errors/failures.dart';
 import 'package:befit_fitness_app/src/home/domain/usecase/get_health_metrics_usecase.dart';
@@ -23,7 +24,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<FetchHomeDataEvent>(_onFetchHomeData);
     on<RefreshHomeDataEvent>(_onRefreshHomeData);
     on<FetchFitnessDataEvent>(_onFetchFitnessData);
-    on<RegisterWithHealthConnectEvent>(_onRegisterWithHealthConnect);
+    on<RegisterWithGoogleFitEvent>(_onRegisterWithGoogleFit);
   }
 
   Future<void> _onFetchHomeData(
@@ -34,8 +35,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     // Fetch both health metrics and user profile in parallel
     final healthMetricsResult =
-        await getHealthMetricsUseCase(event.email);
-    final userProfileResult = await getUserProfileUseCase(event.email);
+        await getHealthMetricsUseCase(event.userId);
+    final userProfileResult = await getUserProfileUseCase(event.userId);
 
     healthMetricsResult.fold(
       (failure) => emit(HomeError(_mapFailureToMessage(failure))),
@@ -64,8 +65,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     // Fetch both health metrics and user profile in parallel
     final healthMetricsResult =
-        await getHealthMetricsUseCase(event.email);
-    final userProfileResult = await getUserProfileUseCase(event.email);
+        await getHealthMetricsUseCase(event.userId);
+    final userProfileResult = await getUserProfileUseCase(event.userId);
 
     healthMetricsResult.fold(
       (failure) => emit(HomeError(_mapFailureToMessage(failure))),
@@ -93,13 +94,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     FetchFitnessDataEvent event,
     Emitter<HomeState> emit,
   ) async {
-    if (state is! HomeLoaded) {
-      return; // Can only fetch fitness data when home is loaded
-    }
+    if (state is! HomeLoaded) return;
 
     final currentState = state as HomeLoaded;
-    
-    // Update state to show fetching
     emit(currentState.copyWith(isFetchingFitnessData: true));
 
     final today = DateTime.now();
@@ -107,7 +104,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     fitnessDataResult.fold(
       (failure) {
-        // On failure, keep existing state but remove fetching flag
+        debugPrint('HomeBloc: Failed to fetch fitness data: ${failure.message}');
         emit(currentState.copyWith(isFetchingFitnessData: false));
       },
       (fitnessData) {
@@ -119,11 +116,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     );
   }
 
-  Future<void> _onRegisterWithHealthConnect(
-    RegisterWithHealthConnectEvent event,
+  Future<void> _onRegisterWithGoogleFit(
+    RegisterWithGoogleFitEvent event,
     Emitter<HomeState> emit,
   ) async {
-    await permissionService.tryRegisterWithHealthConnect();
+    await permissionService.tryRegisterWithGoogleFit();
     // After registration, try to fetch fitness data
     add(const FetchFitnessDataEvent());
   }

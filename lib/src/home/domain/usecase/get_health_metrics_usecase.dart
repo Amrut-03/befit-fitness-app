@@ -9,8 +9,8 @@ class GetHealthMetricsUseCase {
 
   GetHealthMetricsUseCase(this.repository);
 
-  Future<Either<Failure, HealthMetrics>> call(String email) {
-    return repository.getHealthMetrics(email);
+  Future<Either<Failure, HealthMetrics>> call(String userId) {
+    return repository.getHealthMetrics(userId);
   }
 }
 

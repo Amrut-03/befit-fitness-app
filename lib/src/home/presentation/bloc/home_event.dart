@@ -10,22 +10,22 @@ abstract class HomeEvent extends Equatable {
 
 /// Event to fetch home data (health metrics and user profile)
 class FetchHomeDataEvent extends HomeEvent {
-  final String email;
+  final String userId;
 
-  const FetchHomeDataEvent(this.email);
+  const FetchHomeDataEvent(this.userId);
 
   @override
-  List<Object> get props => [email];
+  List<Object> get props => [userId];
 }
 
 /// Event to refresh home data
 class RefreshHomeDataEvent extends HomeEvent {
-  final String email;
+  final String userId;
 
-  const RefreshHomeDataEvent(this.email);
+  const RefreshHomeDataEvent(this.userId);
 
   @override
-  List<Object> get props => [email];
+  List<Object> get props => [userId];
 }
 
 /// Event to fetch fitness data
@@ -33,8 +33,8 @@ class FetchFitnessDataEvent extends HomeEvent {
   const FetchFitnessDataEvent();
 }
 
-/// Event to register with Health Connect
-class RegisterWithHealthConnectEvent extends HomeEvent {
-  const RegisterWithHealthConnectEvent();
+/// Event to register with Google Fit
+class RegisterWithGoogleFitEvent extends HomeEvent {
+  const RegisterWithGoogleFitEvent();
 }
 

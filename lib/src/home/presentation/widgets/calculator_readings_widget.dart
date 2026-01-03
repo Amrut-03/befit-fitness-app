@@ -43,7 +43,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
             FitnessReadingItem(
               onTap: onClick,
               lottieAsset: 'assets/home/lotties/flame.json',
-              value: calories.toStringAsFixed(0),
+              value: calories > 0 ? calories.toStringAsFixed(0) : '0',
               label: 'Calories',
               lottieHeight: 40.h,
               lottieWidth: 40.w,
