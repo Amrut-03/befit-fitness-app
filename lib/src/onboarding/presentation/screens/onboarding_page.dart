@@ -1,5 +1,4 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
-import 'package:befit_fitness_app/core/routes/navigation_service.dart';
 import 'package:befit_fitness_app/core/services/app_initialization_service.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
@@ -51,28 +50,37 @@ class OnboardingPage extends StatelessWidget {
         automaticallyImplyLeading: false,
         leading: isFirstPage
             ? null
-            : CustomIconButton(
+            : IconButton(
                 onPressed: () => context.pop(),
-                icon: Icons.arrow_back_ios_new_rounded,
-                iconColor: AppColors.textPrimary,
-                iconSize: 20.w,
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textPrimary,
+                  size: 20.w,
+                ),
               ),
         actions: [
           if (!isLastPage)
-            CustomTextButton(
-              text: localizations.skip,
+            TextButton.icon(
               onPressed: () async {
                 // Mark onboarding as completed when skipped
                 await AppInitializationService.setOnboardingCompleted();
-                context.navigateToLogin();
+                if (context.mounted) {
+                  context.go(LoginPage.route);
+                }
               },
-              textColor: AppColors.textPrimary,
-              fontWeight: FontWeight.w500,
-              fontSize: 18.sp,
-              icon: Icons.arrow_forward_ios_rounded,
-              iconSize: 15.sp,
-              iconColor: AppColors.textPrimary,
-              mainAxisAlignment: MainAxisAlignment.center,
+              icon: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15.sp,
+                color: AppColors.textPrimary,
+              ),
+              label: Text(
+                localizations.skip,
+                style: GoogleFonts.ubuntu(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18.sp,
+                ),
+              ),
             ),
           if (!isLastPage) SizedBox(width: 20.w),
         ],

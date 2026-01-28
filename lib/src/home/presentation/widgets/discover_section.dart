@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Discover section widget with 6 cards in a 3x2 grid
 class DiscoverSection extends StatelessWidget {
-  final Function(String)? onCardTap;
+  final Future<void> Function(String)? onCardTap;
 
   const DiscoverSection({
     super.key,
@@ -14,10 +14,10 @@ class DiscoverSection extends StatelessWidget {
   // List of discover cards data
   final List<Map<String, dynamic>> _discoverCards = const [
     {
-      'icon': Icons.nightlight_round,
-      'title': 'Diet Plan',
-      'subtitle': 'Eat right, sleep tight',
-      'key': 'Diet Plan',
+      'icon': Icons.restaurant_menu,
+      'title': 'Daily Diet Goal',
+      'subtitle': 'Track your macros',
+      'key': 'Daily Diet Goal',
     },
     {
       'icon': Icons.fitness_center,
@@ -32,23 +32,32 @@ class DiscoverSection extends StatelessWidget {
       'key': 'Bar Code Scanner',
     },
     {
-      'icon': Icons.apps,
-      'title': 'track Progress',
-      'subtitle': 'Link apps & devices',
-      'key': 'Track Progress',
+      'icon': Icons.fastfood,
+      'title': 'My Food Items',
+      'subtitle': 'Manage your foods',
+      'key': 'My Food Items',
     },
-    {
-      'icon': Icons.people,
-      'title': 'Friends',
-      'subtitle': 'Your support squad',
-      'key': 'Friends',
-    },
-    {
-      'icon': Icons.chat_bubble_outline,
-      'title': 'Community',
-      'subtitle': 'Food & fitness inspo',
-      'key': 'Community',
-    },
+    // Track Progress - commented out
+    // {
+    //   'icon': Icons.apps,
+    //   'title': 'track Progress',
+    //   'subtitle': 'Link apps & devices',
+    //   'key': 'Track Progress',
+    // },
+    // Friends - commented out
+    // {
+    //   'icon': Icons.people,
+    //   'title': 'Friends',
+    //   'subtitle': 'Your support squad',
+    //   'key': 'Friends',
+    // },
+    // Community - commented out
+    // {
+    //   'icon': Icons.chat_bubble_outline,
+    //   'title': 'Community',
+    //   'subtitle': 'Food & fitness inspo',
+    //   'key': 'Community',
+    // },
   ];
 
   @override
@@ -68,7 +77,9 @@ class DiscoverSection extends StatelessWidget {
           icon: card['icon'] as IconData,
           title: card['title'] as String,
           subtitle: card['subtitle'] as String,
-          onTap: () => onCardTap?.call(card['key'] as String),
+          onTap: () async {
+            await onCardTap?.call(card['key'] as String);
+          },
         );
       },
     );
@@ -100,6 +111,10 @@ class _DiscoverCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black,
           borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: Colors.white,
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.2),

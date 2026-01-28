@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/activity_item.dart';
 import 'package:befit_fitness_app/src/activity_tracking/data/services/location_tracking_service.dart';
 import 'package:befit_fitness_app/src/activity_tracking/domain/models/activity_tracking_data.dart';

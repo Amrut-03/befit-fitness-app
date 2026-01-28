@@ -1,5 +1,6 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
+import 'package:befit_fitness_app/core/utils/app_snackbar.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
@@ -8,8 +9,8 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
 import 'package:befit_fitness_app/src/onboarding/presentation/widgets/onboarding_carousel.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/screens/permissions_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -42,12 +43,7 @@ class _LoginPageState extends State<LoginPage> {
                 setState(() {
                   _isGoogleSignInLoading = false;
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                AppSnackBar.showError(context, state.message);
               } else if (state is AuthLoading) {
                 setState(() {
                   _isGoogleSignInLoading = true;

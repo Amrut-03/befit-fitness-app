@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
+import 'package:flutter/material.dart';
 
 /// Model class for onboarding page content
 class OnboardingContent {

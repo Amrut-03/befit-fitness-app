@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import 'package:befit_fitness_app/src/home/core/errors/failures.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/home/domain/entities/health_metrics.dart';
 import 'package:befit_fitness_app/src/home/domain/entities/user_profile.dart';
 

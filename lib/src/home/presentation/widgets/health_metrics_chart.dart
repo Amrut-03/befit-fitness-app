@@ -9,16 +9,21 @@ enum ChartType {
   weight,
   calories,
   sleep,
+  heartRate,
 }
 
 /// Model for chart data point
 class ChartDataPoint {
-  final double value;
+  final double? value; // Nullable to handle missing data
   final String label;
+  final bool isMissing; // True if this day has no data
+  final bool isAnomaly; // True if value is an outlier
 
   const ChartDataPoint({
-    required this.value,
+    this.value,
     required this.label,
+    this.isMissing = false,
+    this.isAnomaly = false,
   });
 }
 
@@ -35,6 +40,14 @@ class ChartSeries {
   });
 }
 
+/// Chart state enum
+enum ChartState {
+  empty,
+  loading,
+  error,
+  hasData,
+}
+
 /// Widget displaying health metrics chart (Weight, Calories, Sleep)
 class HealthMetricsChart extends StatefulWidget {
   final ChartSeries series;
@@ -42,6 +55,10 @@ class HealthMetricsChart extends StatefulWidget {
   final String subtitle;
   final ChartType chartType;
   final bool isWeekly;
+  final ChartState state;
+  final String? errorMessage;
+  final VoidCallback? onRetry;
+  final Map<String, String>? summaryMetrics; // e.g., {'avg': '72 bpm', 'trend': '+5 vs last week'}
 
   const HealthMetricsChart({
     super.key,
@@ -50,6 +67,10 @@ class HealthMetricsChart extends StatefulWidget {
     this.title = 'Health Metrics',
     this.subtitle = 'Track your progress',
     this.isWeekly = true,
+    this.state = ChartState.hasData,
+    this.errorMessage,
+    this.onRetry,
+    this.summaryMetrics,
   });
 
   @override
@@ -68,8 +89,29 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.series.dataPoints.isEmpty) {
-      return const SizedBox.shrink();
+    final prefersReducedMotion = MediaQuery.of(context).disableAnimations;
+    final highContrast = MediaQuery.of(context).highContrast;
+
+    // Handle different states
+    if (widget.state == ChartState.empty) {
+      return _buildEmptyState();
+    }
+    
+    if (widget.state == ChartState.loading) {
+      return _buildLoadingState();
+    }
+    
+    if (widget.state == ChartState.error) {
+      return _buildErrorState();
+    }
+
+    // Check if we have valid data (at least one non-zero value)
+    final hasValidData = widget.series.dataPoints.any((point) => 
+      point.value != null && point.value! > 0
+    );
+
+    if (!hasValidData) {
+      return _buildEmptyState();
     }
 
     final maxValue = _getMaxValue();
@@ -81,6 +123,10 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: Colors.white,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -93,6 +139,11 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Summary Metrics (if provided)
+          if (widget.summaryMetrics != null && widget.summaryMetrics!.isNotEmpty) ...[
+            _buildSummaryMetrics(),
+            SizedBox(height: 12.h),
+          ],
           // Title and Subtitle with Toggle
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -143,7 +194,7 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
           SizedBox(
             height: 190.h,
             child: LineChart(
-              _buildChartData(maxValue, minValue),
+              _buildChartData(maxValue, minValue, hasValidData, highContrast),
             ),
           ),
         ],
@@ -177,7 +228,7 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
     );
   }
 
-  LineChartData _buildChartData(double maxValue, double minValue) {
+  LineChartData _buildChartData(double maxValue, double minValue, bool hasValidData, bool highContrast) {
     final dataPoints = _isWeekly 
         ? _getWeeklyDataPoints() 
         : _getMonthlyDataPoints();
@@ -189,12 +240,13 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
     
     return LineChartData(
       gridData: FlGridData(
-        show: true,
+        show: hasValidData, // Only show grid when we have valid data
         drawVerticalLine: false,
         horizontalInterval: interval,
         getDrawingHorizontalLine: (value) {
+          final opacity = highContrast ? 0.3 : 0.1;
           return FlLine(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withOpacity(opacity),
             strokeWidth: 1,
           );
         },
@@ -263,24 +315,7 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       maxX: (dataPoints.length - 1).toDouble(),
       minY: adjustedMin,
       maxY: adjustedMax,
-      lineBarsData: [
-        LineChartBarData(
-          spots: dataPoints.asMap().entries.map((entry) {
-            return FlSpot(entry.key.toDouble(), entry.value.value);
-          }).toList(),
-          isCurved: true,
-          color: widget.series.color,
-          barWidth: 3,
-          isStrokeCapRound: true,
-          dotData: FlDotData(
-            show: false,
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            color: widget.series.color.withOpacity(0.1),
-          ),
-        ),
-      ],
+      lineBarsData: _buildLineBarsData(dataPoints),
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipItems: (List<LineBarSpot> touchedSpots) {
@@ -291,12 +326,32 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
                   : _getMonthlyDataPoints();
               
               if (pointIndex >= 0 && pointIndex < dataPoints.length) {
+                final point = dataPoints[pointIndex];
+                final unit = _getUnit();
+                final date = point.label;
+                
+                // Build tooltip with better formatting
+                String tooltipText = '${widget.series.name}\n${_formatYAxisValue(touchedSpot.y)} $unit\n$date';
+                
+                // Add anomaly warning if applicable
+                if (point.isAnomaly) {
+                  tooltipText = '⚠️ $tooltipText\n\nUnusual value detected';
+                }
+                
+                // Add comparison if previous day exists
+                if (pointIndex > 0 && dataPoints[pointIndex - 1].value != null) {
+                  final prevValue = dataPoints[pointIndex - 1].value!;
+                  final diff = touchedSpot.y - prevValue;
+                  final trend = diff > 0 ? '↗' : (diff < 0 ? '↘' : '→');
+                  tooltipText += '\nvs Yesterday: $trend ${diff.abs().toStringAsFixed(1)} $unit';
+                }
+                
                 return LineTooltipItem(
-                  '${widget.series.name}\n${_formatYAxisValue(touchedSpot.y)}',
+                  tooltipText,
                   GoogleFonts.ubuntu(
                     fontSize: 12.sp,
                     fontWeight: FontWeight.bold,
-                    color: widget.series.color,
+                    color: point.isAnomaly ? Colors.orange : widget.series.color,
                   ),
                 );
               }
@@ -373,6 +428,10 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
           // Sleep: 6-9 hours range with monthly variation
           value = 6 + (index % 6) * 0.5;
           break;
+        case ChartType.heartRate:
+          // Heart Rate: 60-100 bpm range with monthly variation
+          value = 60 + (index % 6) * 6.0;
+          break;
       }
       
       return ChartDataPoint(
@@ -383,30 +442,91 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
   }
 
   double _getMaxValue() {
-    // Fixed Y-axis ranges for all graphs
+    // For weight, use dynamic maximum based on data
+    if (widget.chartType == ChartType.weight) {
+      final validValues = widget.series.dataPoints
+          .where((p) => p.value != null && p.value! > 0)
+          .map((p) => p.value!)
+          .toList();
+      
+      if (validValues.isNotEmpty) {
+        final maxData = validValues.reduce((a, b) => a > b ? a : b);
+        // Use maximum + 5 kg buffer, but cap at 200 kg
+        return (maxData + 5).clamp(0.0, 200.0);
+      }
+    }
+    
+    // Fixed Y-axis ranges for other graphs
     switch (widget.chartType) {
       case ChartType.weight:
-        return 200.0; // End at 200
+        return 200.0; // Fallback
       case ChartType.calories:
-        return 4000.0; // End at 4000
+        // Dynamic for calories if all data < 2000
+        final validValues = widget.series.dataPoints
+            .where((p) => p.value != null && p.value! > 0)
+            .map((p) => p.value!)
+            .toList();
+        if (validValues.isNotEmpty) {
+          final maxData = validValues.reduce((a, b) => a > b ? a : b);
+          if (maxData < 2000) {
+            return 2500.0; // Adjusted max with 250 kcal intervals
+          }
+        }
+        return 4000.0;
       case ChartType.sleep:
-        return 20.0; // End at 20
+        return 20.0;
+      case ChartType.heartRate:
+        // Dynamic for heart rate if all data < 100 bpm
+        final validValues = widget.series.dataPoints
+            .where((p) => p.value != null && p.value! > 0)
+            .map((p) => p.value!)
+            .toList();
+        if (validValues.isNotEmpty) {
+          final maxData = validValues.reduce((a, b) => a > b ? a : b);
+          if (maxData < 100) {
+            return 120.0; // Adjusted max with 10 bpm intervals
+          }
+        }
+        return 200.0;
     }
   }
 
   double _getMinValue() {
-    // All graphs start from 0
+    // For weight, use dynamic minimum (never 0 kg)
+    if (widget.chartType == ChartType.weight) {
+      final validValues = widget.series.dataPoints
+          .where((p) => p.value != null && p.value! > 0)
+          .map((p) => p.value!)
+          .toList();
+      
+      if (validValues.isNotEmpty) {
+        final minData = validValues.reduce((a, b) => a < b ? a : b);
+        // Use minimum - 5 kg buffer, but never below 40 kg
+        return (minData - 5).clamp(40.0, double.infinity);
+      }
+      // Default to 40 kg if no data (reasonable adult minimum)
+      return 40.0;
+    }
+    // All other graphs start from 0
     return 0.0;
   }
 
   double _getYAxisInterval() {
+    final maxValue = _getMaxValue();
+    
     switch (widget.chartType) {
       case ChartType.weight:
-        return 20.0; // 0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200
+        // Use 10 kg intervals if range is small, otherwise 20 kg
+        final range = maxValue - _getMinValue();
+        return range < 20 ? 10.0 : 20.0;
       case ChartType.calories:
-        return 500.0; // 0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000
+        // Use 250 kcal intervals if max < 2500, otherwise 500 kcal
+        return maxValue < 2500 ? 250.0 : 500.0;
       case ChartType.sleep:
-        return 2.0; // 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20
+        return 2.0;
+      case ChartType.heartRate:
+        // Use 10 bpm intervals if max < 120, otherwise 20 bpm
+        return maxValue < 120 ? 10.0 : 20.0;
     }
   }
 
@@ -422,7 +542,352 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       case ChartType.sleep:
         // Sleep: show as "9", "8", "7", "6" (hrs)
         return value.toInt().toString();
+      case ChartType.heartRate:
+        // Heart Rate: show as "100", "80", "60", "40" (bpm)
+        return value.toInt().toString();
     }
+  }
+
+  String _getUnit() {
+    switch (widget.chartType) {
+      case ChartType.weight:
+        return 'kg';
+      case ChartType.calories:
+        return 'kcal';
+      case ChartType.sleep:
+        return 'hrs';
+      case ChartType.heartRate:
+        return 'bpm';
+    }
+  }
+
+  List<LineChartBarData> _buildLineBarsData(List<ChartDataPoint> dataPoints) {
+    final spots = <FlSpot>[];
+    final missingIndices = <int>[];
+    
+    // Build spots, handling missing data
+    for (int i = 0; i < dataPoints.length; i++) {
+      final point = dataPoints[i];
+      if (point.value != null && point.value! > 0) {
+        spots.add(FlSpot(i.toDouble(), point.value!));
+      } else {
+        missingIndices.add(i);
+      }
+    }
+
+    // Main line (solid for valid data, dashed for gaps)
+    return [
+      LineChartBarData(
+        spots: spots,
+        isCurved: true,
+        color: widget.series.color,
+        barWidth: 3,
+        isStrokeCapRound: true,
+        dotData: FlDotData(
+          show: false,
+        ),
+        belowBarData: BarAreaData(
+          show: true,
+          color: widget.series.color.withOpacity(0.1),
+        ),
+      ),
+      // Anomaly points (if any)
+      if (dataPoints.any((p) => p.isAnomaly))
+        LineChartBarData(
+          spots: dataPoints.asMap().entries
+              .where((entry) => entry.value.isAnomaly && entry.value.value != null)
+              .map((entry) => FlSpot(entry.key.toDouble(), entry.value.value!))
+              .toList(),
+          isCurved: false,
+          color: Colors.orange,
+          barWidth: 0,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, percent, barData, index) {
+              return FlDotCirclePainter(
+                radius: 6,
+                color: Colors.orange,
+                strokeWidth: 3,
+                strokeColor: Colors.white,
+              );
+            },
+          ),
+        ),
+    ];
+  }
+
+  Widget _buildEmptyState() {
+    IconData icon;
+    String message;
+    String secondaryMessage;
+
+    switch (widget.chartType) {
+      case ChartType.heartRate:
+        icon = Icons.favorite;
+        message = 'No heart rate data yet';
+        secondaryMessage = 'Connect a device or start a workout to begin tracking.';
+        break;
+      case ChartType.calories:
+        icon = Icons.local_fire_department;
+        message = 'No calorie data yet';
+        secondaryMessage = 'Sync with Google Fit or log activities to see your burn.';
+        break;
+      case ChartType.weight:
+        icon = Icons.monitor_weight;
+        message = 'No weight data yet';
+        secondaryMessage = 'Add your weight to start tracking your progress.';
+        break;
+      case ChartType.sleep:
+        icon = Icons.bedtime;
+        message = 'No sleep data yet';
+        secondaryMessage = 'Connect a device to track your sleep.';
+        break;
+    }
+
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 5.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 40.h),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: Colors.white,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 48.sp,
+            color: Colors.white.withOpacity(0.5),
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            message,
+            style: GoogleFonts.ubuntu(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            secondaryMessage,
+            style: GoogleFonts.ubuntu(
+              fontSize: 12.sp,
+              color: Colors.white.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 5.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: Colors.white,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.subtitle,
+                      style: GoogleFonts.ubuntu(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      widget.title,
+                      style: GoogleFonts.ubuntu(
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 15.h),
+          SizedBox(
+            height: 190.h,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: widget.series.color,
+                  ),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'Loading your data...',
+                    style: GoogleFonts.ubuntu(
+                      fontSize: 12.sp,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 5.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: Colors.white,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.subtitle,
+                      style: GoogleFonts.ubuntu(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      widget.title,
+                      style: GoogleFonts.ubuntu(
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 15.h),
+          SizedBox(
+            height: 190.h,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48.sp,
+                    color: Colors.red.withOpacity(0.7),
+                  ),
+                  SizedBox(height: 16.h),
+                  Text(
+                    widget.errorMessage ?? 'Failed to load data',
+                    style: GoogleFonts.ubuntu(
+                      fontSize: 12.sp,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.onRetry != null) ...[
+                    SizedBox(height: 16.h),
+                    ElevatedButton(
+                      onPressed: widget.onRetry,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.series.color,
+                      ),
+                      child: Text(
+                        'Retry',
+                        style: GoogleFonts.ubuntu(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryMetrics() {
+    if (widget.summaryMetrics == null || widget.summaryMetrics!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: widget.summaryMetrics!.entries.map((entry) {
+          return Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.key,
+                  style: GoogleFonts.ubuntu(
+                    fontSize: 10.sp,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  entry.value,
+                  style: GoogleFonts.ubuntu(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }
 

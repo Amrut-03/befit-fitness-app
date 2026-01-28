@@ -1,9 +1,9 @@
 import 'package:dartz/dartz.dart';
-import 'package:befit_fitness_app/src/google_fit/core/errors/failures.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/entities/fitness_data.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/repositories/google_fit_repository.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/get_fitness_data_usecase.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/request_permissions_usecase.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/entities/fitness_data.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/repositories/google_fit_repository.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/get_fitness_data_usecase.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/request_permissions_usecase.dart';
 
 /// Use case for fetching fitness data with automatic permission handling
 class GetFitnessDataWithPermissionsUseCase {
@@ -17,7 +17,7 @@ class GetFitnessDataWithPermissionsUseCase {
     required this.requestPermissionsUseCase,
   });
 
-  Future<Either<FitnessFailure, FitnessData>> call(DateTime date) async {
+  Future<Either<Failure, FitnessData>> call(DateTime date) async {
     final hasPermissionsResult = await repository.hasPermissions();
     
     bool hasPermissions = false;

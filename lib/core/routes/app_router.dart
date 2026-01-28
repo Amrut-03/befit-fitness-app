@@ -8,12 +8,21 @@ import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_prof
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen1.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen2.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen3.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/screens/permissions_screen.dart';
 import 'package:befit_fitness_app/src/activity_tracking/presentation/screens/activity_tracking_screen.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/activity_item.dart';
 import 'package:befit_fitness_app/src/food_scanner/presentation/screens/barcode_scanner_screen.dart';
 import 'package:befit_fitness_app/src/food_scanner/presentation/screens/food_product_details_screen.dart';
 import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/goal_editing_page.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/daily_macros_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/diet_planning_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/plan_your_diet_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/diet_plan_detail_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/manual_food_entry_screen.dart';
+import 'package:befit_fitness_app/src/home/presentation/screens/my_food_items_screen.dart';
+import 'package:befit_fitness_app/src/workout/presentation/screens/workout_list_screen.dart';
+import 'package:befit_fitness_app/src/workout/presentation/bloc/workout_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -282,6 +291,90 @@ class AppRouter {
           // Fallback - should not happen
           return const Scaffold(
             body: Center(child: Text('Product not provided')),
+          );
+        },
+      ),
+      // Goal editing route
+      GoRoute(
+        path: GoalEditingPage.route,
+        name: 'goal-editing',
+        builder: (context, state) => const GoalEditingPage(),
+      ),
+      // Daily macros route
+      GoRoute(
+        path: DailyMacrosScreen.route,
+        name: 'daily-macros',
+        builder: (context, state) => const DailyMacrosScreen(),
+      ),
+      // Diet planning route
+      GoRoute(
+        path: DietPlanningScreen.route,
+        name: 'diet-planning',
+        builder: (context, state) => const DietPlanningScreen(),
+      ),
+      // Plan your diet route
+      GoRoute(
+        path: PlanYourDietScreen.route,
+        name: 'plan-your-diet',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return PlanYourDietScreen(
+              planId: extra['planId'] as String?,
+              planData: extra['planData'] as Map<String, dynamic>?,
+            );
+          }
+          return const PlanYourDietScreen();
+        },
+      ),
+      // Diet plan detail route
+      GoRoute(
+        path: DietPlanDetailScreen.route,
+        name: 'diet-plan-detail',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return DietPlanDetailScreen(
+              planId: extra['planId'] as String,
+              planData: extra['planData'] as Map<String, dynamic>,
+            );
+          }
+          return const Scaffold(
+            body: Center(child: Text('Diet plan data not provided')),
+          );
+        },
+      ),
+      // Manual food entry route
+      GoRoute(
+        path: ManualFoodEntryScreen.route,
+        name: 'manual-food-entry',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return ManualFoodEntryScreen(
+              product: extra['product'] as FoodProduct?,
+              docId: extra['docId'] as String?,
+              type: extra['type'] as String?,
+            );
+          }
+          return const ManualFoodEntryScreen();
+        },
+      ),
+      GoRoute(
+        path: MyFoodItemsScreen.route,
+        name: 'my-food-items',
+        builder: (context, state) => const MyFoodItemsScreen(),
+      ),
+      // Workout list route (DIP: Bloc provided here, screen depends on abstraction)
+      GoRoute(
+        path: WorkoutListScreen.route,
+        name: 'workout-list',
+        builder: (context, state) {
+          final bodyPart = state.uri.queryParameters['bodyPart'];
+          return BlocProvider(
+            create: (context) =>
+                getIt<WorkoutBloc>()..add(const LoadExerciseFiltersEvent()),
+            child: WorkoutListScreen(initialBodyPart: bodyPart),
           );
         },
       ),

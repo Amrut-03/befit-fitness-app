@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:befit_fitness_app/src/auth/core/errors/failures.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 

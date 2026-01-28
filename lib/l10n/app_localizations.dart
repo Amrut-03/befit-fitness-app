@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
 
 // ignore_for_file: type=lint
 
@@ -92,7 +93,10 @@ abstract class AppLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('es'),
+  ];
 
   /// No description provided for @appTitle.
   ///
@@ -160,11 +164,11 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
-  /// No description provided for @login.
+  /// No description provided for @signIn_or_signUp.
   ///
   /// In en, this message translates to:
-  /// **'Login'**
-  String get login;
+  /// **'Sign-In/Sign-Up'**
+  String get signIn_or_signUp;
 
   /// No description provided for @register.
   ///
@@ -357,6 +361,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try Again'**
   String get tryAgain;
+
+  /// Description for onboarding page 1
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to better health! Physical and mental  well-being help you live energetically and reduce disease risk.'**
+  String get onboardingPage1Description;
+
+  /// Description for onboarding page 2
+  ///
+  /// In en, this message translates to:
+  /// **'A balanced diet provides essential nutrients, maintains weight, boosts immunity, and prevents diseases. Make smart food choices to fuel your fitness journey.'**
+  String get onboardingPage2Description;
+
+  /// Description for onboarding page 3
+  ///
+  /// In en, this message translates to:
+  /// **'Regular exercise is vital for health, managing weight, strengthening muscles and bones, improving heart health, and boosting mental well-being.'**
+  String get onboardingPage3Description;
+
+  /// No description provided for @appName.
+  ///
+  /// In en, this message translates to:
+  /// **'BeFit'**
+  String get appName;
+
+  /// No description provided for @appNameBe.
+  ///
+  /// In en, this message translates to:
+  /// **'Be'**
+  String get appNameBe;
+
+  /// No description provided for @appNameFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit'**
+  String get appNameFit;
+
+  /// No description provided for @helloWelcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello, WelCome!'**
+  String get helloWelcome;
+
+  /// No description provided for @welcomeToBefit.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to BeFit Top PlatForm to Every people'**
+  String get welcomeToBefit;
+
+  /// No description provided for @signInWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with '**
+  String get signInWith;
 }
 
 class _AppLocalizationsDelegate
@@ -370,7 +428,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en'].contains(locale.languageCode);
+      <String>['en', 'es'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -381,6 +439,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
   }
 
   throw FlutterError(

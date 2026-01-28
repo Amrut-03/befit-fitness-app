@@ -1,5 +1,6 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
+import 'package:befit_fitness_app/core/utils/app_snackbar.dart';
 import 'package:befit_fitness_app/core/widgets/widgets.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
@@ -75,6 +76,9 @@ class _ProfileOnboardingScreen2State extends State<ProfileOnboardingScreen2> {
         workoutType: _selectedWorkoutType,
         purpose: _selectedPurpose,
         isProfileComplete: false, // Set to false for partial save
+        // Preserve height and weight from previous screen
+        height: _profile?.height,
+        weight: _profile?.weight,
       );
 
       // Save partial profile to Firebase with isProfileComplete: false
@@ -92,9 +96,7 @@ class _ProfileOnboardingScreen2State extends State<ProfileOnboardingScreen2> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: ${e.toString()}')),
-        );
+        AppSnackBar.showError(context, 'Failed to save: ${e.toString()}');
       }
     } finally {
       if (mounted) {

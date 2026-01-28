@@ -17,7 +17,7 @@ class AnimatedTextWidget extends StatelessWidget {
           Text(
             'Find Your',
             style: GoogleFonts.ubuntu(
-              color: AppColors.textPrimary,
+              color: AppColors.textOnPrimary,
               fontWeight: FontWeight.bold,
               fontSize: 25.sp,
             ),

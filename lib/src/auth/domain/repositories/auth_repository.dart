@@ -1,7 +1,6 @@
 import 'package:dartz/dartz.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/auth/domain/entities/user.dart';
-
-import '../../core/errors/failures.dart';
 
 /// Repository interface for authentication operations
 abstract class AuthRepository {

@@ -1,5 +1,6 @@
 import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/core/routes/app_router.dart';
+import 'package:befit_fitness_app/core/config/app_config.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -18,13 +19,17 @@ void main() async {
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint('Warning: .env file not found. Using default values.');
+    // In production, .env might not exist, continue with defaults
+    debugPrint('Warning: Could not load .env file: $e');
   }
   
   // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Firebase Crashlytics & Analytics
+  await _initializeFirebaseServices();
   
   // Initialize SharedPreferences (needed for onboarding state)
   await SharedPreferences.getInstance();
@@ -33,6 +38,28 @@ void main() async {
   await initDependencyInjection();
   
   runApp(const MyApp());
+}
+
+/// Initialize Firebase services (Crashlytics, Analytics, Performance)
+Future<void> _initializeFirebaseServices() async {
+  try {
+    // Only initialize if feature flags are enabled
+    if (AppConfig.enableCrashReporting) {
+      // Note: firebase_crashlytics package needs to be added to pubspec.yaml
+      // FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      // PlatformDispatcher.instance.onError = (error, stack) {
+      //   FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      //   return true;
+      // };
+    }
+    
+    if (AppConfig.enableAnalytics) {
+      // Firebase Analytics is automatically initialized with Firebase.initializeApp()
+      // You can access it via FirebaseAnalytics.instance when needed
+    }
+  } catch (e) {
+    debugPrint('Error initializing Firebase services: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {

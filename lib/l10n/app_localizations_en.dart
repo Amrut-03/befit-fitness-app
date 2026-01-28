@@ -42,7 +42,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
-  String get login => 'Login';
+  String get signIn_or_signUp => 'Sign-In/Sign-Up';
 
   @override
   String get register => 'Register';
@@ -139,4 +139,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tryAgain => 'Try Again';
+
+  @override
+  String get onboardingPage1Description =>
+      'Welcome to better health! Physical and mental  well-being help you live energetically and reduce disease risk.';
+
+  @override
+  String get onboardingPage2Description =>
+      'A balanced diet provides essential nutrients, maintains weight, boosts immunity, and prevents diseases. Make smart food choices to fuel your fitness journey.';
+
+  @override
+  String get onboardingPage3Description =>
+      'Regular exercise is vital for health, managing weight, strengthening muscles and bones, improving heart health, and boosting mental well-being.';
+
+  @override
+  String get appName => 'BeFit';
+
+  @override
+  String get appNameBe => 'Be';
+
+  @override
+  String get appNameFit => 'Fit';
+
+  @override
+  String get helloWelcome => 'Hello, WelCome!';
+
+  @override
+  String get welcomeToBefit => 'Welcome to BeFit Top PlatForm to Every people';
+
+  @override
+  String get signInWith => 'Sign in with ';
 }

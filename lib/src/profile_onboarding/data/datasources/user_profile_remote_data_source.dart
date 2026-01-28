@@ -76,9 +76,15 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       // Save isProfileComplete flag
       updateData['profile.isProfileComplete'] = profile.isProfileComplete;
       
-      // Update health map (dateOfBirth is stored here)
+      // Update health map (dateOfBirth, height, weight are stored here)
       if (profile.dateOfBirth != null) {
         updateData['health.dateOfBirth'] = Timestamp.fromDate(profile.dateOfBirth!);
+      }
+      if (profile.height != null) {
+        updateData['health.height'] = profile.height; // in cm
+      }
+      if (profile.weight != null) {
+        updateData['health.weight'] = profile.weight; // in kg
       }
       updateData['health.updatedAt'] = now;
       
@@ -136,9 +142,15 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       // Save isProfileComplete as false for partial saves
       updateData['profile.isProfileComplete'] = false;
       
-      // Update health map (dateOfBirth is stored here)
+      // Update health map (dateOfBirth, height, weight are stored here)
       if (profile.dateOfBirth != null) {
         updateData['health.dateOfBirth'] = Timestamp.fromDate(profile.dateOfBirth!);
+      }
+      if (profile.height != null) {
+        updateData['health.height'] = profile.height; // in cm
+      }
+      if (profile.weight != null) {
+        updateData['health.weight'] = profile.weight; // in kg
       }
       updateData['health.updatedAt'] = now;
       
@@ -164,30 +176,45 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
 
       final data = docSnapshot.data()!;
       
-      // Firestore stores dot-notation fields as flat keys (e.g., "profile.firstName")
-      // So we need to read from flat keys and reconstruct the nested structure
+      // Firestore stores dot-notation fields as nested maps
+      // Try both nested structure and flat keys for compatibility
       
-      // Read profile fields from flat keys
-      final firstName = data['profile.firstName'] as String?;
-      final lastName = data['profile.lastName'] as String?;
-      final gender = data['profile.gender'] as String?;
-      final workoutType = data['profile.workoutType'] as String?;
-      final purpose = data['profile.purpose'] as String?;
-      final photoUrl = data['profile.photoUrl'] as String?;
-      final isProfileComplete = data['profile.isProfileComplete'] as bool? ?? false;
+      // Read profile fields - try nested first, then flat keys
+      final profile = data['profile'] as Map<String, dynamic>? ?? {};
+      final firstName = profile['firstName'] as String? ?? data['profile.firstName'] as String?;
+      final lastName = profile['lastName'] as String? ?? data['profile.lastName'] as String?;
+      final gender = profile['gender'] as String? ?? data['profile.gender'] as String?;
+      final workoutType = profile['workoutType'] as String? ?? data['profile.workoutType'] as String?;
+      final purpose = profile['purpose'] as String? ?? data['profile.purpose'] as String?;
+      final photoUrl = profile['photoUrl'] as String? ?? data['profile.photoUrl'] as String?;
+      final isProfileComplete = profile['isProfileComplete'] as bool? ?? data['profile.isProfileComplete'] as bool? ?? false;
       
       // Combine firstName and lastName into name
       final name = [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
 
-      // Read health fields from flat keys
+      // Read health fields - try nested first, then flat keys
+      final health = data['health'] as Map<String, dynamic>? ?? {};
       DateTime? dateOfBirth;
-      final dateOfBirthValue = data['health.dateOfBirth'];
+      final dateOfBirthValue = health['dateOfBirth'] ?? data['health.dateOfBirth'];
       if (dateOfBirthValue != null) {
         if (dateOfBirthValue is Timestamp) {
           dateOfBirth = dateOfBirthValue.toDate();
         } else if (dateOfBirthValue is String) {
           dateOfBirth = DateTime.parse(dateOfBirthValue);
         }
+      }
+
+      // Read height and weight from health map - try nested first, then flat keys
+      double? height;
+      final heightValue = health['height'] ?? data['health.height'];
+      if (heightValue != null) {
+        height = (heightValue as num).toDouble();
+      }
+
+      double? weight;
+      final weightValue = health['weight'] ?? data['health.weight'];
+      if (weightValue != null) {
+        weight = (weightValue as num).toDouble();
       }
 
       return UserProfile(
@@ -197,6 +224,8 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         workoutType: workoutType,
         purpose: purpose,
         photoUrl: photoUrl,
+        height: height,
+        weight: weight,
         isProfileComplete: isProfileComplete,
       );
     } catch (e) {

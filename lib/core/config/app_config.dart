@@ -18,6 +18,34 @@ class AppConfig {
       dotenv.env['GOOGLE_MAPS_API_KEY'] ??
       ''; // Will be set in AndroidManifest.xml
 
+  static String get googleSignInServerClientId =>
+      dotenv.env['GOOGLE_SIGN_IN_SERVER_CLIENT_ID'] ??
+      '475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com'; // Fallback for development
+
+  static String get rapidApiKey {
+    try {
+      // Check if dotenv is initialized by trying to access it
+      // This will throw NotInitializedError if not loaded
+      final env = dotenv.env;
+      final key = env['EXERCISE_DB_API_KEY'] ?? '';
+      if (key.isNotEmpty) {
+        debugPrint('AppConfig: EXERCISE_DB_API_KEY loaded successfully');
+      } else {
+        debugPrint('AppConfig: EXERCISE_DB_API_KEY is empty in .env file');
+      }
+      return key;
+    } catch (e) {
+      // Handle NotInitializedError or any other error
+      if (e.toString().contains('NotInitialized') || 
+          e.toString().contains('not initialized')) {
+        debugPrint('AppConfig: dotenv not initialized yet. Make sure dotenv.load() is called in main()');
+      } else {
+        debugPrint('AppConfig: Error accessing EXERCISE_DB_API_KEY: $e');
+      }
+      return '';
+    }
+  }
+
   // Firebase Configuration
   static const String firebaseProjectId = 'befit-app';
 

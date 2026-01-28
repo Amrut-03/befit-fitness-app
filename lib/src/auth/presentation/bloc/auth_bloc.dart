@@ -1,20 +1,24 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:befit_fitness_app/core/utils/logger.dart';
 import 'package:befit_fitness_app/src/auth/domain/usecase/google_sign_in_usecase.dart';
 import 'package:befit_fitness_app/src/auth/domain/usecase/handle_authenticated_user_usecase.dart';
-import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
-import 'package:befit_fitness_app/src/auth/core/errors/failures.dart';
+import 'package:befit_fitness_app/src/auth/domain/usecase/sign_out_usecase.dart';
+import 'package:befit_fitness_app/src/auth/domain/usecase/get_current_user_usecase.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_event.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 
 /// BLoC for managing authentication state and operations
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final GoogleSignInUseCase googleSignInUseCase;
-  final AuthRepository authRepository;
+  final SignOutUseCase signOutUseCase;
+  final GetCurrentUserUseCase getCurrentUserUseCase;
   final HandleAuthenticatedUserUseCase handleAuthenticatedUserUseCase;
 
   AuthBloc({
     required this.googleSignInUseCase,
-    required this.authRepository,
+    required this.signOutUseCase,
+    required this.getCurrentUserUseCase,
     required this.handleAuthenticatedUserUseCase,
   }) : super(const AuthInitial()) {
     on<SignInWithGoogleEvent>(_onSignInWithGoogle);
@@ -34,6 +38,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) {
+        // Log error for monitoring
+        AppLogger.e(
+          'AuthBloc: Sign-in failed',
+          failure,
+          StackTrace.current,
+        );
+
         if (failure is CancellationFailure) {
           // User cancelled - return to unauthenticated state
           emit(const Unauthenticated());
@@ -63,6 +74,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) {
+        // Log error for monitoring
+        AppLogger.e(
+          'AuthBloc: Failed to handle authenticated user',
+          failure,
+          StackTrace.current,
+        );
         // On failure, keep authenticated state but log error
         // Don't emit error state as user is still authenticated
       },
@@ -84,10 +101,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.signOut();
+    final result = await signOutUseCase();
 
     result.fold(
-      (failure) => emit(AuthError(failure.message)),
+      (failure) {
+        // Log error for monitoring
+        AppLogger.e(
+          'AuthBloc: Sign-out failed',
+          failure,
+          StackTrace.current,
+        );
+        emit(AuthError(failure.message));
+      },
       (_) => emit(const Unauthenticated()),
     );
   }
@@ -100,10 +125,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.getCurrentUser();
+    final result = await getCurrentUserUseCase();
 
     result.fold(
-      (failure) => emit(AuthError(failure.message)),
+      (failure) {
+        // Log error for monitoring
+        AppLogger.e(
+          'AuthBloc: Failed to check auth state',
+          failure,
+          StackTrace.current,
+        );
+        emit(AuthError(failure.message));
+      },
       (user) {
         if (user != null) {
           emit(Authenticated(user));
@@ -112,5 +145,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
       },
     );
+  }
+
+  @override
+  Future<void> close() {
+    AppLogger.d('AuthBloc: Closing');
+    return super.close();
   }
 }

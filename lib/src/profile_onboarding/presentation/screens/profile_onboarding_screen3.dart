@@ -5,8 +5,8 @@ import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_prof
 import 'package:befit_fitness_app/src/profile_onboarding/domain/usecase/save_user_profile_usecase.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/home_page.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/screens/permissions_screen.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/screens/permissions_screen.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/services/permission_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';

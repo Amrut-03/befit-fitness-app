@@ -6,6 +6,8 @@ class UserProfile {
   final String? workoutType; // e.g., 'cardio', 'strength', 'yoga', etc.
   final String? purpose; // e.g., 'weight_loss', 'muscle_gain', 'general_fitness', etc.
   final String? photoUrl;
+  final double? height; // in cm
+  final double? weight; // in kg
   final bool isProfileComplete;
 
   const UserProfile({
@@ -15,6 +17,8 @@ class UserProfile {
     this.workoutType,
     this.purpose,
     this.photoUrl,
+    this.height,
+    this.weight,
     this.isProfileComplete = false,
   });
 
@@ -25,6 +29,8 @@ class UserProfile {
     String? workoutType,
     String? purpose,
     String? photoUrl,
+    double? height,
+    double? weight,
     bool? isProfileComplete,
   }) {
     return UserProfile(
@@ -34,6 +40,8 @@ class UserProfile {
       workoutType: workoutType ?? this.workoutType,
       purpose: purpose ?? this.purpose,
       photoUrl: photoUrl ?? this.photoUrl,
+      height: height ?? this.height,
+      weight: weight ?? this.weight,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
     );
   }

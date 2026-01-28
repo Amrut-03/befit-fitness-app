@@ -24,6 +24,10 @@ class ActivitiesTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(15.r),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.6),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
