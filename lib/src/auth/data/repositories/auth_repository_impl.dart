@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import 'package:befit_fitness_app/src/auth/core/errors/failures.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:befit_fitness_app/src/auth/domain/entities/user.dart';
 import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
@@ -36,74 +36,6 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  @override
-  Future<Either<Failure, User>> signInWithEmailPassword(String email, String password) async {
-    try {
-      final user = await remoteDataSource.signInWithEmailPassword(email, password);
-      return Right(user);
-    } catch (e) {
-      final errorMessage = e.toString();
-      
-      // Check if it's a network error
-      if (errorMessage.contains('network') || 
-          errorMessage.contains('NetworkError') ||
-          errorMessage.contains('SocketException')) {
-        return Left(NetworkFailure(errorMessage));
-      }
-      
-      // Default to auth failure
-      return Left(AuthFailure(errorMessage));
-    }
-  }
-
-  @override
-  Future<Either<Failure, User>> signUpWithEmailPassword(String email, String password) async {
-    try {
-      final user = await remoteDataSource.signUpWithEmailPassword(email, password);
-      return Right(user);
-    } catch (e) {
-      final errorMessage = e.toString();
-      
-      // Check if it's a network error
-      if (errorMessage.contains('network') || 
-          errorMessage.contains('NetworkError') ||
-          errorMessage.contains('SocketException')) {
-        return Left(NetworkFailure(errorMessage));
-      }
-      
-      // Default to auth failure
-      return Left(AuthFailure(errorMessage));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> sendEmailVerification() async {
-    try {
-      await remoteDataSource.sendEmailVerification();
-      return const Right(null);
-    } catch (e) {
-      return Left(AuthFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> resetPassword(String email) async {
-    try {
-      await remoteDataSource.resetPassword(email);
-      return const Right(null);
-    } catch (e) {
-      final errorMessage = e.toString();
-      
-      // Check if it's a network error
-      if (errorMessage.contains('network') || 
-          errorMessage.contains('NetworkError') ||
-          errorMessage.contains('SocketException')) {
-        return Left(NetworkFailure(errorMessage));
-      }
-      
-      return Left(AuthFailure(errorMessage));
-    }
-  }
 
   @override
   Future<Either<Failure, void>> signOut() async {

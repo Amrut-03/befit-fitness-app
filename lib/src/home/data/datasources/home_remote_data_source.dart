@@ -4,8 +4,8 @@ import 'package:befit_fitness_app/src/home/domain/entities/user_profile.dart';
 
 /// Remote data source interface for home data
 abstract class HomeRemoteDataSource {
-  Future<HealthMetrics> getHealthMetrics(String email);
-  Future<UserProfile> getUserProfile(String email);
+  Future<HealthMetrics> getHealthMetrics(String userId);
+  Future<UserProfile> getUserProfile(String userId);
 }
 
 /// Implementation of home remote data source
@@ -15,21 +15,22 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   HomeRemoteDataSourceImpl({required this.firestore});
 
   @override
-  Future<HealthMetrics> getHealthMetrics(String email) async {
+  Future<HealthMetrics> getHealthMetrics(String userId) async {
     try {
-      final userDoc = await firestore.collection('users').doc(email).get();
+      final userDoc = await firestore.collection('users').doc(userId).get();
 
       if (!userDoc.exists) {
         return const HealthMetrics();
       }
 
       final data = userDoc.data();
+      final metrics = data?['metrics'] as Map<String, dynamic>? ?? {};
+      
       return HealthMetrics(
-        bmi: data?['BMI']?['value']?.toDouble(),
-        bmr: data?['BMR']?['value']?.toInt(),
-        hrc: data?['HRC']?['value']?.toInt(),
-        overallHealthPercentage: data?['OverallHealthPercentage']?['value']
-            ?.toDouble(),
+        bmi: metrics['bmi']?.toDouble(),
+        bmr: metrics['bmr']?.toInt(),
+        hrc: null, // HRC not in new structure, can be added later if needed
+        overallHealthPercentage: null, // Can be calculated from other metrics if needed
       );
     } catch (e) {
       throw Exception('Failed to fetch health metrics: $e');
@@ -37,18 +38,24 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   }
 
   @override
-  Future<UserProfile> getUserProfile(String email) async {
+  Future<UserProfile> getUserProfile(String userId) async {
     try {
-      final userDoc = await firestore.collection('userdata').doc(email).get();
+      final userDoc = await firestore.collection('users').doc(userId).get();
 
       if (!userDoc.exists) {
-        return UserProfile(email: email);
+        // Get email from meta if available, otherwise use userId
+        return UserProfile(email: userId);
       }
 
       final data = userDoc.data();
-      // Try both 'firstname' and 'firstName' to handle different field names
+      final profile = data?['profile'] as Map<String, dynamic>? ?? {};
+      final meta = data?['meta'] as Map<String, dynamic>? ?? {};
+      
+      // Get email from meta, fallback to userId
+      final email = meta['email'] as String? ?? userId;
+      
       return UserProfile(
-        firstName: data?['firstName'] ?? data?['firstname'],
+        firstName: profile['firstName'] as String?,
         email: email,
       );
     } catch (e) {

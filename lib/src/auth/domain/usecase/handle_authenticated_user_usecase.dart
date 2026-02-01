@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:befit_fitness_app/src/auth/core/errors/failures.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 
@@ -30,15 +30,18 @@ class HandleAuthenticatedUserUseCase {
         return Left(AuthFailure('No authenticated user found'));
       }
 
-      // Update auth user info (email and photoUrl) in Firestore
-      final documentId = (firebaseUser.email ?? firebaseUser.uid).toLowerCase();
+      // Update auth user info (email, photoUrl, and authProvider) in Firestore
+      final userId = firebaseUser.uid;
+      final authProvider = firebaseUser.providerData.isNotEmpty 
+          ? firebaseUser.providerData.first.providerId 
+          : 'email';
 
       try {
         await profileRepository.updateAuthUserInfo(
-          documentId: documentId,
-          userId: firebaseUser.uid,
+          userId: userId,
           email: firebaseUser.email,
           photoUrl: firebaseUser.photoURL,
+          authProvider: authProvider,
         );
       } catch (e) {
         // Continue even if update fails
@@ -48,7 +51,7 @@ class HandleAuthenticatedUserUseCase {
       // Check if profile is complete
       bool isComplete = false;
       try {
-        isComplete = await profileRepository.isProfileComplete(documentId);
+        isComplete = await profileRepository.isProfileComplete(userId);
       } catch (e) {
         // If check fails, assume profile is not complete
         isComplete = false;
@@ -61,7 +64,7 @@ class HandleAuthenticatedUserUseCase {
       // Profile not complete - get existing profile and merge with auth data
       UserProfile? existingProfile;
       try {
-        existingProfile = await profileRepository.getUserProfile(documentId);
+        existingProfile = await profileRepository.getUserProfile(userId);
       } catch (e) {
         // If get fails, use empty profile
         existingProfile = null;

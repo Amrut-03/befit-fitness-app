@@ -1,13 +1,14 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
-import 'package:befit_fitness_app/core/routes/navigation_service.dart';
 import 'package:befit_fitness_app/core/services/app_initialization_service.dart';
-import 'package:befit_fitness_app/core/widgets/widgets.dart';
+import 'package:befit_fitness_app/core/widgets/elevated_icon_button.dart';
+import 'package:befit_fitness_app/core/widgets/text_rich.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 class OnboardingPage extends StatelessWidget {
@@ -51,28 +52,37 @@ class OnboardingPage extends StatelessWidget {
         automaticallyImplyLeading: false,
         leading: isFirstPage
             ? null
-            : CustomIconButton(
+            : IconButton(
                 onPressed: () => context.pop(),
-                icon: Icons.arrow_back_ios_new_rounded,
-                iconColor: AppColors.textPrimary,
-                iconSize: 20.w,
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textPrimary,
+                  size: 20.w,
+                ),
               ),
         actions: [
           if (!isLastPage)
-            CustomTextButton(
-              text: localizations.skip,
+            TextButton.icon(
               onPressed: () async {
                 // Mark onboarding as completed when skipped
                 await AppInitializationService.setOnboardingCompleted();
-                context.navigateToLogin();
+                if (context.mounted) {
+                  context.go(LoginPage.route);
+                }
               },
-              textColor: AppColors.textPrimary,
-              fontWeight: FontWeight.w500,
-              fontSize: 18.sp,
-              icon: Icons.arrow_forward_ios_rounded,
-              iconSize: 15.sp,
-              iconColor: AppColors.textPrimary,
-              mainAxisAlignment: MainAxisAlignment.center,
+              icon: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15.sp,
+                color: AppColors.textPrimary,
+              ),
+              label: Text(
+                localizations.skip,
+                style: GoogleFonts.ubuntu(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18.sp,
+                ),
+              ),
             ),
           if (!isLastPage) SizedBox(width: 20.w),
         ],
@@ -124,12 +134,16 @@ class OnboardingPage extends StatelessWidget {
                     ElevatedIconButton(
                       onPressed: () async {
                         if (isLastPage) {
-                          // Mark onboarding as completed
                           await AppInitializationService.setOnboardingCompleted();
-                          context.navigateToLogin();
+                          if (context.mounted) {
+                            context.go(LoginPage.route);
+                          }
                         } else {
-                          // Navigate to next page
-                          // context.navigateToOnboardingPage(pageIndex + 1);
+                          final nextIndex = pageIndex + 1;
+                          if (nextIndex < OnboardingContentRepository.totalPages &&
+                              context.mounted) {
+                            context.go('/onboarding/$nextIndex');
+                          }
                         }
                       },
                       minWidth: 100.w,

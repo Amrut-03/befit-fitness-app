@@ -14,11 +14,19 @@
       },
       "oauth_client": [
         {
-          "client_id": "475383477382-hoj7lkpf1qi0qqke1l3k893msv5ovb5i.apps.googleusercontent.com",
+          "client_id": "475383477382-gl82kjrfkp36b29t9jp9t6h6g3cte1mf.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.befit_fitness.app",
-            "certificate_hash": "eb5595213bf3f57fd21d5f886282b45da0ceba41"
+            "certificate_hash": "6b41a035dc30e46043d60203203ec0c94a61f96c"
+          }
+        },
+        {
+          "client_id": "475383477382-rl1e4k91gki9m4o6fqvardts4fr293ur.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.befit_fitness.app",
+            "certificate_hash": "54c7a8f8d2d5ea570d8a14934eae0a85aac4f61d"
           }
         },
         {
@@ -101,42 +109,6 @@
             "certificate_hash": "5a7c03a8cfc4a13be075fc41dc9aeece0453da02"
           }
         },
-        {
-          "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.befitApp"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:475383477382:android:ce949d45326aba73c44d07",
-        "android_client_info": {
-          "package_name": "com.khochikaramrut.BeFit"
-        }
-      },
-      "oauth_client": [
         {
           "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
           "client_type": 3

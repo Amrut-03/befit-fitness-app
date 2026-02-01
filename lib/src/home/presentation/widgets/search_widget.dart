@@ -25,31 +25,30 @@ class _SearchWidgetState extends State<SearchWidget> {
     'Calculator',
     'Nutrition',
   ];
-  List<String> _filteredCategories = [];
+  final ValueNotifier<List<String>> _filteredCategories = ValueNotifier<List<String>>([]);
 
   @override
   void initState() {
     super.initState();
-    _filteredCategories = [];
+    _filteredCategories.value = [];
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _filteredCategories.dispose();
     super.dispose();
   }
 
   void _filterCategories(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredCategories = [];
-      } else {
-        _filteredCategories = _categories
-            .where((category) =>
-                category.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      }
-    });
+    if (query.isEmpty) {
+      _filteredCategories.value = [];
+    } else {
+      _filteredCategories.value = _categories
+          .where((category) =>
+              category.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    }
   }
 
   void _navigateToCategory(String category) {
@@ -100,9 +99,12 @@ class _SearchWidgetState extends State<SearchWidget> {
             ),
           ),
           SizedBox(height: 10.h),
-          if (_filteredCategories.isNotEmpty) ...[
-            Column(
-              children: _filteredCategories.map((category) {
+          ValueListenableBuilder<List<String>>(
+            valueListenable: _filteredCategories,
+            builder: (context, filteredCategories, child) {
+              if (filteredCategories.isNotEmpty) {
+                return Column(
+                  children: filteredCategories.map((category) {
                 return InkWell(
                   onTap: () => _navigateToCategory(category),
                   child: Padding(
@@ -146,19 +148,22 @@ class _SearchWidgetState extends State<SearchWidget> {
                   ),
                 );
               }).toList(),
-            ),
-          ] else if (_searchController.text.isNotEmpty) ...[
-            Padding(
-              padding: EdgeInsets.all(8.w),
-              child: Text(
-                'No results found',
-                style: GoogleFonts.ubuntu(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
+                );
+              } else if (_searchController.text.isNotEmpty) {
+                return Padding(
+                  padding: EdgeInsets.all(8.w),
+                  child: Text(
+                    'No results found',
+                    style: GoogleFonts.ubuntu(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ],
       ),
     );

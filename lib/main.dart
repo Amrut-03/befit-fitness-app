@@ -1,5 +1,6 @@
 import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/core/routes/app_router.dart';
+import 'package:befit_fitness_app/core/config/app_config.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/providers/language_provider.dart';
+import 'src/home/data/services/meal_alarm_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -17,28 +19,30 @@ void main() async {
   // Load environment variables from .env file
   try {
     await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('Warning: .env file not found. Using default values.');
-  }
-  
-  // Initialize Firebase
+  } catch (_) {}
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // Initialize SharedPreferences (needed for onboarding state)
+  await _initializeFirebaseServices();
   await SharedPreferences.getInstance();
-  
-  // Initialize dependency injection
   await initDependencyInjection();
-  
+  await getIt<MealAlarmService>().init();
+
   runApp(const MyApp());
+}
+
+Future<void> _initializeFirebaseServices() async {
+  try {
+    if (AppConfig.enableCrashReporting) {}
+    if (AppConfig.enableAnalytics) {}
+  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -53,7 +57,6 @@ class MyApp extends StatelessWidget {
               return MaterialApp.router(
                 title: 'BeFit Fitness App',
                 debugShowCheckedModeBanner: false,
-                // Localization configuration
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
@@ -61,8 +64,8 @@ class MyApp extends StatelessWidget {
                   GlobalCupertinoLocalizations.delegate,
                 ],
                 supportedLocales: const [
-                  Locale('en', ''), // English
-                  Locale('es', ''), // Spanish
+                  Locale('en', ''),
+                  Locale('es', ''),
                 ],
                 locale: languageProvider.locale,
                 theme: ThemeData(

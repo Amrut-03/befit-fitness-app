@@ -1,6 +1,6 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
-import 'package:befit_fitness_app/core/widgets/widgets.dart';
-import 'package:befit_fitness_app/l10n/app_localizations.dart';
+import 'package:befit_fitness_app/core/utils/app_snackbar.dart';
+import 'package:befit_fitness_app/core/widgets/elevated_icon_button.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/presentation/screens/profile_onboarding_screen2.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -24,6 +24,8 @@ class ProfileOnboardingScreen1 extends StatefulWidget {
 
 class _ProfileOnboardingScreen1State extends State<ProfileOnboardingScreen1> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
   DateTime? _selectedDate;
   String? _selectedGender;
 
@@ -34,12 +36,20 @@ class _ProfileOnboardingScreen1State extends State<ProfileOnboardingScreen1> {
       _nameController.text = widget.initialProfile!.name ?? '';
       _selectedDate = widget.initialProfile!.dateOfBirth;
       _selectedGender = widget.initialProfile!.gender;
+      if (widget.initialProfile!.height != null) {
+        _heightController.text = widget.initialProfile!.height!.toStringAsFixed(1);
+      }
+      if (widget.initialProfile!.weight != null) {
+        _weightController.text = widget.initialProfile!.weight!.toStringAsFixed(1);
+      }
     }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _heightController.dispose();
+    _weightController.dispose();
     super.dispose();
   }
 
@@ -72,16 +82,28 @@ class _ProfileOnboardingScreen1State extends State<ProfileOnboardingScreen1> {
   bool get _isValid {
     return _nameController.text.trim().isNotEmpty &&
         _selectedDate != null &&
-        _selectedGender != null;
+        _selectedGender != null &&
+        _heightController.text.trim().isNotEmpty &&
+        _weightController.text.trim().isNotEmpty;
   }
 
   void _onNext() {
     if (!_isValid) return;
 
+    final height = double.tryParse(_heightController.text.trim());
+    final weight = double.tryParse(_weightController.text.trim());
+
+    if (height == null || weight == null || height <= 0 || weight <= 0) {
+      AppSnackBar.showError(context, 'Please enter valid height and weight');
+      return;
+    }
+
     final profile = UserProfile(
       name: _nameController.text.trim(),
       dateOfBirth: _selectedDate,
       gender: _selectedGender,
+      height: height,
+      weight: weight,
     );
 
     context.push(
@@ -92,7 +114,6 @@ class _ProfileOnboardingScreen1State extends State<ProfileOnboardingScreen1> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -262,6 +283,80 @@ class _ProfileOnboardingScreen1State extends State<ProfileOnboardingScreen1> {
                     child: _buildGenderOption('other', 'Other'),
                   ),
                 ],
+              ),
+              SizedBox(height: 30.h),
+              // Height field
+              Text(
+                'Height (cm)',
+                style: GoogleFonts.ubuntu(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              TextField(
+                controller: _heightController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  hintText: 'Enter your height in cm',
+                  hintStyle: GoogleFonts.ubuntu(
+                    color: AppColors.textPrimary.withOpacity(0.5),
+                  ),
+                  suffixText: 'cm',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: AppColors.textPrimary.withOpacity(0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: AppColors.textPrimary.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                ),
+                style: GoogleFonts.ubuntu(fontSize: 16.sp),
+                onChanged: (_) => setState(() {}),
+              ),
+              SizedBox(height: 30.h),
+              // Weight field
+              Text(
+                'Weight (kg)',
+                style: GoogleFonts.ubuntu(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              TextField(
+                controller: _weightController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  hintText: 'Enter your weight in kg',
+                  hintStyle: GoogleFonts.ubuntu(
+                    color: AppColors.textPrimary.withOpacity(0.5),
+                  ),
+                  suffixText: 'kg',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: AppColors.textPrimary.withOpacity(0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: AppColors.textPrimary.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                ),
+                style: GoogleFonts.ubuntu(fontSize: 16.sp),
+                onChanged: (_) => setState(() {}),
               ),
               SizedBox(height: 40.h),
               // Next button

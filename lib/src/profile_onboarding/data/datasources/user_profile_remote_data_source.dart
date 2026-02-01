@@ -6,22 +6,27 @@ abstract class UserProfileRemoteDataSource {
   /// Save or update user profile
   Future<void> saveUserProfile({
     required String userId,
-    required String documentId,
     required UserProfile profile,
   });
 
-  /// Get user profile by document ID (email)
-  Future<UserProfile?> getUserProfile(String documentId);
+  /// Save partial user profile (for intermediate saves during onboarding)
+  Future<void> savePartialUserProfile({
+    required String userId,
+    required UserProfile profile,
+  });
+
+  /// Get user profile by user ID (uid)
+  Future<UserProfile?> getUserProfile(String userId);
 
   /// Check if user profile is complete
-  Future<bool> isProfileComplete(String documentId);
+  Future<bool> isProfileComplete(String userId);
 
   /// Update auth user info (email/photo) on profile document
   Future<void> updateAuthUserInfo({
-    required String documentId,
-    required String? userId,
+    required String userId,
     required String? email,
     required String? photoUrl,
+    required String? authProvider,
   });
 }
 
@@ -45,7 +50,6 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<void> saveUserProfile({
     required String userId,
-    required String documentId,
     required UserProfile profile,
   }) async {
     try {
@@ -56,44 +60,121 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       final firstName = nameParts.isNotEmpty ? nameParts[0] : null;
       final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : null;
 
-      // Calculate age from date of birth
-      final age = _calculateAge(profile.dateOfBirth);
-
-      final profileData = {
-        'id': userId,
-        'email': documentId,
-        'firstName': firstName,
-        'lastName': lastName,
-        'dateOfBirth': profile.dateOfBirth?.toIso8601String(),
-        'age': age,
-        'gender': profile.gender,
-        'workoutType': profile.workoutType,
-        'purpose': profile.purpose,
-        'height': null, // Can be added later
-        'weight': null, // Can be added later
-        'phoneNumber': null, // Can be added later
-        'photoUrl': null, // Will be set from auth user if available
-        'updatedAt': now,
-      };
-
-      // Check if document exists to determine if we should set createdAt
-      final docRef = firestore.collection('userdata').doc(documentId);
+      // Prepare nested structure using dot notation for proper nested map merging
+      final docRef = firestore.collection('users').doc(userId);
       final docSnapshot = await docRef.get();
       
+      final updateData = <String, dynamic>{};
+      
+      // Update profile map using dot notation to merge nested fields
+      if (firstName != null) updateData['profile.firstName'] = firstName;
+      if (lastName != null) updateData['profile.lastName'] = lastName;
+      if (profile.gender != null) updateData['profile.gender'] = profile.gender;
+      if (profile.photoUrl != null) updateData['profile.photoUrl'] = profile.photoUrl;
+      if (profile.workoutType != null) updateData['profile.workoutType'] = profile.workoutType;
+      if (profile.purpose != null) updateData['profile.purpose'] = profile.purpose;
+      // Save isProfileComplete flag
+      updateData['profile.isProfileComplete'] = profile.isProfileComplete;
+      
+      // Update health map (dateOfBirth, height, weight are stored here)
+      if (profile.dateOfBirth != null) {
+        updateData['health.dateOfBirth'] = Timestamp.fromDate(profile.dateOfBirth!);
+      }
+      if (profile.height != null) {
+        updateData['health.height'] = profile.height; // in cm
+      }
+      if (profile.weight != null) {
+        updateData['health.weight'] = profile.weight; // in kg
+      }
+      updateData['health.updatedAt'] = now;
+      // Remove duplicate fields so only health.height and health.weight are used
+      updateData['health.heightCm'] = FieldValue.delete();
+      updateData['health.weightKg'] = FieldValue.delete();
+
+      // Set createdAt in meta if document doesn't exist
       if (!docSnapshot.exists) {
-        profileData['createdAt'] = now;
+        updateData['meta.createdAt'] = now;
       }
 
-      await docRef.set(profileData, SetOptions(merge: true));
+      await docRef.set(updateData, SetOptions(merge: true));
+      
+      // Verify the data was written by reading it back
+      // This ensures Firestore has written the data before we continue
+      await Future.delayed(const Duration(milliseconds: 200));
+      final verifyDoc = await docRef.get();
+      if (verifyDoc.exists) {
+        final verifyData = verifyDoc.data();
+        final verifyProfile = verifyData?['profile'] as Map<String, dynamic>? ?? {};
+        final savedIsComplete = verifyProfile['isProfileComplete'] as bool? ?? false;
+        if (savedIsComplete != profile.isProfileComplete) {
+          // If not saved correctly, try one more time
+          await docRef.set(updateData, SetOptions(merge: true));
+        }
+      }
     } catch (e) {
       throw Exception('Failed to save user profile: ${e.toString()}');
     }
   }
 
   @override
-  Future<UserProfile?> getUserProfile(String documentId) async {
+  Future<void> savePartialUserProfile({
+    required String userId,
+    required UserProfile profile,
+  }) async {
     try {
-      final docSnapshot = await firestore.collection('userdata').doc(documentId).get();
+      final now = FieldValue.serverTimestamp();
+      
+      // Split name into firstName and lastName
+      final nameParts = (profile.name ?? '').split(' ');
+      final firstName = nameParts.isNotEmpty ? nameParts[0] : null;
+      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : null;
+
+      // Prepare nested structure using dot notation for proper nested map merging
+      final docRef = firestore.collection('users').doc(userId);
+      final docSnapshot = await docRef.get();
+      
+      final updateData = <String, dynamic>{};
+      
+      // Update profile map using dot notation to merge nested fields
+      if (firstName != null) updateData['profile.firstName'] = firstName;
+      if (lastName != null) updateData['profile.lastName'] = lastName;
+      if (profile.gender != null) updateData['profile.gender'] = profile.gender;
+      if (profile.photoUrl != null) updateData['profile.photoUrl'] = profile.photoUrl;
+      if (profile.workoutType != null) updateData['profile.workoutType'] = profile.workoutType;
+      if (profile.purpose != null) updateData['profile.purpose'] = profile.purpose;
+      // Save isProfileComplete as false for partial saves
+      updateData['profile.isProfileComplete'] = false;
+      
+      // Update health map (dateOfBirth, height, weight are stored here)
+      if (profile.dateOfBirth != null) {
+        updateData['health.dateOfBirth'] = Timestamp.fromDate(profile.dateOfBirth!);
+      }
+      if (profile.height != null) {
+        updateData['health.height'] = profile.height; // in cm
+      }
+      if (profile.weight != null) {
+        updateData['health.weight'] = profile.weight; // in kg
+      }
+      updateData['health.updatedAt'] = now;
+      // Remove duplicate fields so only health.height and health.weight are used
+      updateData['health.heightCm'] = FieldValue.delete();
+      updateData['health.weightKg'] = FieldValue.delete();
+
+      // Set createdAt in meta if document doesn't exist
+      if (!docSnapshot.exists) {
+        updateData['meta.createdAt'] = now;
+      }
+
+      await docRef.set(updateData, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Failed to save partial user profile: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<UserProfile?> getUserProfile(String userId) async {
+    try {
+      final docSnapshot = await firestore.collection('users').doc(userId).get();
       
       if (!docSnapshot.exists || docSnapshot.data() == null) {
         return null;
@@ -101,30 +182,58 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
 
       final data = docSnapshot.data()!;
       
+      // Firestore stores dot-notation fields as nested maps
+      // Try both nested structure and flat keys for compatibility
+      
+      // Read profile fields - try nested first, then flat keys
+      final profile = data['profile'] as Map<String, dynamic>? ?? {};
+      final firstName = profile['firstName'] as String? ?? data['profile.firstName'] as String?;
+      final lastName = profile['lastName'] as String? ?? data['profile.lastName'] as String?;
+      final gender = profile['gender'] as String? ?? data['profile.gender'] as String?;
+      final workoutType = profile['workoutType'] as String? ?? data['profile.workoutType'] as String?;
+      final purpose = profile['purpose'] as String? ?? data['profile.purpose'] as String?;
+      final photoUrl = profile['photoUrl'] as String? ?? data['profile.photoUrl'] as String?;
+      final isProfileComplete = profile['isProfileComplete'] as bool? ?? data['profile.isProfileComplete'] as bool? ?? false;
+      
       // Combine firstName and lastName into name
-      // Try both 'firstName' and 'firstname' to handle different field names
-      final firstName = (data['firstName'] ?? data['firstname']) as String?;
-      final lastName = (data['lastName'] ?? data['lastname']) as String?;
       final name = [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
 
-      // Parse dateOfBirth
+      // Read health fields - try nested first, then flat keys
+      final health = data['health'] as Map<String, dynamic>? ?? {};
       DateTime? dateOfBirth;
-      if (data['dateOfBirth'] != null) {
-        if (data['dateOfBirth'] is Timestamp) {
-          dateOfBirth = (data['dateOfBirth'] as Timestamp).toDate();
-        } else if (data['dateOfBirth'] is String) {
-          dateOfBirth = DateTime.parse(data['dateOfBirth'] as String);
+      final dateOfBirthValue = health['dateOfBirth'] ?? data['health.dateOfBirth'];
+      if (dateOfBirthValue != null) {
+        if (dateOfBirthValue is Timestamp) {
+          dateOfBirth = dateOfBirthValue.toDate();
+        } else if (dateOfBirthValue is String) {
+          dateOfBirth = DateTime.parse(dateOfBirthValue);
         }
+      }
+
+      // Read height and weight from health map - use only health.height and health.weight
+      // (no health.heightCm / health.weightKg; those are removed on save)
+      double? height;
+      final heightValue = health['height'] ?? data['health.height'];
+      if (heightValue != null) {
+        height = (heightValue as num).toDouble();
+      }
+
+      double? weight;
+      final weightValue = health['weight'] ?? data['health.weight'];
+      if (weightValue != null) {
+        weight = (weightValue as num).toDouble();
       }
 
       return UserProfile(
         name: name.isNotEmpty ? name : null,
         dateOfBirth: dateOfBirth,
-        gender: data['gender'] as String?,
-        workoutType: data['workoutType'] as String?,
-        purpose: data['purpose'] as String?,
-        photoUrl: data['photoUrl'] as String?,
-        isProfileComplete: _isProfileComplete(data),
+        gender: gender,
+        workoutType: workoutType,
+        purpose: purpose,
+        photoUrl: photoUrl,
+        height: height,
+        weight: weight,
+        isProfileComplete: isProfileComplete,
       );
     } catch (e) {
       throw Exception('Failed to get user profile: ${e.toString()}');
@@ -132,54 +241,63 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
-  Future<bool> isProfileComplete(String documentId) async {
+  Future<bool> isProfileComplete(String userId) async {
     try {
-      final profile = await getUserProfile(documentId);
-      return profile?.isProfileComplete ?? false;
-    } catch (e) {
-      return false;
-    }
-  }
+      final docSnapshot = await firestore.collection('users').doc(userId).get();
+      if (!docSnapshot.exists || docSnapshot.data() == null) return false;
 
-  bool _isProfileComplete(Map<String, dynamic> data) {
-    // Profile is complete if all required fields are present
-    // Try both 'firstName' and 'firstname' to handle different field names
-    final hasFirstName = data['firstName'] != null || data['firstname'] != null;
-    return hasFirstName &&
-        data['dateOfBirth'] != null &&
-        data['gender'] != null &&
-        data['workoutType'] != null &&
-        data['purpose'] != null;
+      final data = docSnapshot.data()!;
+      const isCompleteKey = 'profile.isProfileComplete';
+      if (data.containsKey(isCompleteKey)) {
+        return data[isCompleteKey] as bool? ?? false;
+      }
+      final profile = data['profile'] as Map<String, dynamic>?;
+      if (profile != null && profile.isNotEmpty) {
+        return profile['isProfileComplete'] as bool? ?? false;
+      }
+      return false;
+    } catch (e) {
+      throw Exception('Failed to check profile completion: ${e.toString()}');
+    }
   }
 
   @override
   Future<void> updateAuthUserInfo({
-    required String documentId,
-    required String? userId,
+    required String userId,
     required String? email,
     required String? photoUrl,
+    required String? authProvider,
   }) async {
     try {
-      final updateData = <String, dynamic>{
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
+      final now = FieldValue.serverTimestamp();
+      final updateData = <String, dynamic>{};
+      
+      // Update meta map using dot notation for proper nested map merging
+      updateData['meta.lastActiveAt'] = now;
+      
       if (email != null) {
-        updateData['email'] = email;
+        updateData['meta.email'] = email;
       }
-
+      
+      if (authProvider != null) {
+        updateData['meta.authProvider'] = authProvider;
+      }
+      
+      // Set createdAt and isProfileComplete if document doesn't exist
+      final docRef = firestore.collection('users').doc(userId);
+      final docSnapshot = await docRef.get();
+      if (!docSnapshot.exists) {
+        updateData['meta.createdAt'] = now;
+        // Set isProfileComplete to false when user first signs in
+        updateData['profile.isProfileComplete'] = false;
+      }
+      
+      // Update profile map with photoUrl using dot notation
       if (photoUrl != null) {
-        updateData['photoUrl'] = photoUrl;
+        updateData['profile.photoUrl'] = photoUrl;
       }
 
-      if (userId != null) {
-        updateData['id'] = userId;
-      }
-
-      await firestore.collection('userdata').doc(documentId).set(
-            updateData,
-            SetOptions(merge: true),
-          );
+      await docRef.set(updateData, SetOptions(merge: true));
     } catch (e) {
       throw Exception('Failed to update auth user info: ${e.toString()}');
     }

@@ -46,7 +46,8 @@ class NutritionInfo {
   final double? fiber; // g
   final double? sugar; // g
   final double? sodium; // mg
-  final double? servingSize; // g
+  final double? servingSize; // g (converted to grams for storage)
+  final String? servingUnit; // Unit used for serving size (e.g., 'grams', 'cups', 'pieces')
 
   NutritionInfo({
     this.calories,
@@ -57,6 +58,7 @@ class NutritionInfo {
     this.sugar,
     this.sodium,
     this.servingSize,
+    this.servingUnit,
   });
 
   factory NutritionInfo.fromJson(Map<String, dynamic> json) {
@@ -68,7 +70,8 @@ class NutritionInfo {
       fiber: _parseDouble(json['fiber_100g'] ?? json['fiber']),
       sugar: _parseDouble(json['sugars_100g'] ?? json['sugars']),
       sodium: _parseDouble(json['sodium_100g'] ?? json['sodium']),
-      servingSize: _parseDouble(json['serving_size'] ?? 100),
+      servingSize: _parseDouble(json['serving_size'] ?? json['servingSize'] ?? 100),
+      servingUnit: json['serving_unit'] ?? json['servingUnit'] as String?,
     );
   }
 

@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:befit_fitness_app/src/auth/domain/entities/user.dart';
 import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
-import 'package:befit_fitness_app/src/auth/core/errors/failures.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 
 /// Use case for Google Sign-In
 class GoogleSignInUseCase {

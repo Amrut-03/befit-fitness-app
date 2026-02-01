@@ -1,13 +1,27 @@
+import 'package:befit_fitness_app/src/fitness_tracker/data/datasources/google_fit_data_source.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/data/datasources/google_fit_data_source_impl.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/data/repositories/google_fit_repository_impl.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/repositories/google_fit_repository.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/get_aggregated_data_usecase.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/get_fitness_data_usecase.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/get_today_steps_usecase.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/request_permissions_usecase.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/domain/usecase/write_steps_usecase.dart';
 import 'package:get_it/get_it.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:health/health.dart';
+import 'package:befit_fitness_app/core/config/app_config.dart';
+import 'package:befit_fitness_app/core/network/dio_client.dart';
+import 'package:befit_fitness_app/core/network/network_info.dart';
+import 'package:befit_fitness_app/core/network/network_info_impl.dart';
 import 'package:befit_fitness_app/src/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:befit_fitness_app/src/auth/data/repositories/auth_repository_impl.dart';
 import 'package:befit_fitness_app/src/auth/domain/repositories/auth_repository.dart';
 import 'package:befit_fitness_app/src/auth/domain/usecase/google_sign_in_usecase.dart';
 import 'package:befit_fitness_app/src/auth/domain/usecase/handle_authenticated_user_usecase.dart';
+import 'package:befit_fitness_app/src/auth/domain/usecase/sign_out_usecase.dart';
+import 'package:befit_fitness_app/src/auth/domain/usecase/get_current_user_usecase.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/datasources/user_profile_remote_data_source.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
@@ -18,23 +32,36 @@ import 'package:befit_fitness_app/src/home/domain/repositories/home_repository.d
 import 'package:befit_fitness_app/src/home/domain/usecase/get_health_metrics_usecase.dart';
 import 'package:befit_fitness_app/src/home/domain/usecase/get_user_profile_usecase.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
-import 'package:befit_fitness_app/src/google_fit/data/datasources/google_fit_data_source.dart';
-import 'package:befit_fitness_app/src/google_fit/data/datasources/google_fit_data_source_impl.dart';
-import 'package:befit_fitness_app/src/google_fit/data/repositories/google_fit_repository_impl.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/repositories/google_fit_repository.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/get_today_steps_usecase.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/get_fitness_data_usecase.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/request_permissions_usecase.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/get_aggregated_data_usecase.dart';
-import 'package:befit_fitness_app/src/google_fit/domain/usecase/write_steps_usecase.dart';
 import 'package:befit_fitness_app/src/home/domain/usecase/get_fitness_data_with_permissions_usecase.dart';
-import 'package:befit_fitness_app/src/permissions/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/workout/data/datasources/exercise_api_config.dart';
+import 'package:befit_fitness_app/src/workout/data/datasources/exercise_api_config_impl.dart';
+import 'package:befit_fitness_app/src/workout/data/datasources/exercise_db_data_source.dart';
+import 'package:befit_fitness_app/src/workout/data/datasources/exercise_remote_data_source.dart';
+import 'package:befit_fitness_app/src/workout/data/repositories/exercise_repository_impl.dart';
+import 'package:befit_fitness_app/src/workout/domain/repositories/exercise_repository.dart';
+import 'package:befit_fitness_app/src/workout/domain/usecases/get_exercises_usecase.dart';
+import 'package:befit_fitness_app/src/workout/domain/usecases/get_exercise_filters_usecase.dart';
+import 'package:befit_fitness_app/src/workout/domain/usecases/get_exercise_by_id_usecase.dart';
+import 'package:befit_fitness_app/src/workout/presentation/bloc/workout_bloc.dart';
+import 'package:befit_fitness_app/src/my_food_items/data/datasources/food_items_remote_data_source.dart';
+import 'package:befit_fitness_app/src/my_food_items/data/repositories/food_items_repository_impl.dart';
+import 'package:befit_fitness_app/src/my_food_items/domain/repositories/food_items_repository.dart';
+import 'package:befit_fitness_app/src/my_food_items/domain/usecases/get_food_items_usecase.dart';
+import 'package:befit_fitness_app/src/my_food_items/domain/usecases/delete_food_item_usecase.dart';
+import 'package:befit_fitness_app/src/my_food_items/presentation/bloc/my_food_items_bloc.dart';
+import 'package:befit_fitness_app/src/home/data/services/meal_alarm_service.dart';
+import 'package:befit_fitness_app/src/home/data/services/delete_account_service.dart';
 
 /// GetIt instance for dependency injection
 final getIt = GetIt.instance;
 
 /// Initialize dependency injection
 Future<void> initDependencyInjection() async {
+  // Core Network Services
+  getIt.registerLazySingleton<DioClient>(() => DioClient());
+  getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
+
   // Firebase
   getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   getIt.registerLazySingleton<FirebaseFirestore>(
@@ -45,6 +72,7 @@ Future<void> initDependencyInjection() async {
   // For Android, serverClientId (Web Client ID) is required to get idToken
   // Get this from Firebase Console > Project Settings > Your apps > Web app
   // Added Google Fit scopes for health data access
+  // Now using AppConfig to load from environment variables
   getIt.registerLazySingleton<GoogleSignIn>(
     () => GoogleSignIn(
       scopes: [
@@ -56,9 +84,8 @@ Future<void> initDependencyInjection() async {
         'https://www.googleapis.com/auth/fitness.body.read',
         'https://www.googleapis.com/auth/fitness.location.read',
       ],
-      // Web Client ID from Firebase Console (required for idToken on Android)
-      // This is the client_id with client_type: 3 in google-services.json
-      serverClientId: '475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com',
+      // Web Client ID from environment variable or fallback
+      serverClientId: AppConfig.googleSignInServerClientId,
     ),
   );
 
@@ -75,6 +102,20 @@ Future<void> initDependencyInjection() async {
     () => AuthRepositoryImpl(getIt<AuthRemoteDataSource>()),
   );
 
+  // User Profile Remote Data Source (needed before HandleAuthenticatedUserUseCase)
+  getIt.registerLazySingleton<UserProfileRemoteDataSource>(
+    () => UserProfileRemoteDataSourceImpl(
+      firestore: getIt<FirebaseFirestore>(),
+    ),
+  );
+
+  // User Profile Repository (needed before HandleAuthenticatedUserUseCase)
+  getIt.registerLazySingleton<UserProfileRepository>(
+    () => UserProfileRepositoryImpl(
+      remoteDataSource: getIt<UserProfileRemoteDataSource>(),
+    ),
+  );
+
   // Auth Use Cases
   getIt.registerLazySingleton<GoogleSignInUseCase>(
     () => GoogleSignInUseCase(getIt<AuthRepository>()),
@@ -84,26 +125,21 @@ Future<void> initDependencyInjection() async {
     () => HandleAuthenticatedUserUseCase(getIt<UserProfileRepository>()),
   );
 
+  getIt.registerLazySingleton<SignOutUseCase>(
+    () => SignOutUseCase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetCurrentUserUseCase>(
+    () => GetCurrentUserUseCase(getIt<AuthRepository>()),
+  );
+
   // Auth BLoC (factory - new instance each time)
   getIt.registerFactory<AuthBloc>(
     () => AuthBloc(
       googleSignInUseCase: getIt<GoogleSignInUseCase>(),
-      authRepository: getIt<AuthRepository>(),
+      signOutUseCase: getIt<SignOutUseCase>(),
+      getCurrentUserUseCase: getIt<GetCurrentUserUseCase>(),
       handleAuthenticatedUserUseCase: getIt<HandleAuthenticatedUserUseCase>(),
-    ),
-  );
-
-  // User Profile Remote Data Source
-  getIt.registerLazySingleton<UserProfileRemoteDataSource>(
-    () => UserProfileRemoteDataSourceImpl(
-      firestore: getIt<FirebaseFirestore>(),
-    ),
-  );
-
-  // User Profile Repository
-  getIt.registerLazySingleton<UserProfileRepository>(
-    () => UserProfileRepositoryImpl(
-      remoteDataSource: getIt<UserProfileRemoteDataSource>(),
     ),
   );
 
@@ -136,21 +172,10 @@ Future<void> initDependencyInjection() async {
   );
 
 
-  // Google Fit - Health instance
-  // The health package automatically uses Health Connect on Android if available
-  getIt.registerLazySingleton<Health>(
-    () => Health(),
-  );
-  
-  // Configure Health instance - required before use
-  // This must be called before any health operations
-  final health = getIt<Health>();
-  await health.configure();
-
-  // Google Fit Data Source
+  // Google Fit Data Source - Uses REST API directly
   getIt.registerLazySingleton<GoogleFitDataSource>(
     () => GoogleFitDataSourceImpl(
-      health: getIt<Health>(),
+      googleSignIn: getIt<GoogleSignIn>(),
     ),
   );
 
@@ -196,6 +221,71 @@ Future<void> initDependencyInjection() async {
     () => PermissionService(),
   );
 
+  // Workout / Exercise (SOLID: abstractions first, then implementations)
+  getIt.registerLazySingleton<ExerciseApiConfig>(
+    () => ExerciseApiConfigImpl(),
+  );
+
+  getIt.registerLazySingleton<ExerciseRemoteDataSource>(
+    () => ExerciseDbDataSource(
+      dioClient: getIt<DioClient>(),
+      apiConfig: getIt<ExerciseApiConfig>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<ExerciseRepository>(
+    () => ExerciseRepositoryImpl(getIt<ExerciseRemoteDataSource>()),
+  );
+
+  getIt.registerLazySingleton<GetExercisesUseCase>(
+    () => GetExercisesUseCase(getIt<ExerciseRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetExerciseFiltersUseCase>(
+    () => GetExerciseFiltersUseCase(getIt<ExerciseRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetExerciseByIdUseCase>(
+    () => GetExerciseByIdUseCase(getIt<ExerciseRepository>()),
+  );
+
+  getIt.registerFactory<WorkoutBloc>(
+    () => WorkoutBloc(
+      getExercisesUseCase: getIt<GetExercisesUseCase>(),
+      getExerciseFiltersUseCase: getIt<GetExerciseFiltersUseCase>(),
+    ),
+  );
+
+  // Food Items Remote Data Source
+  getIt.registerLazySingleton<FoodItemsRemoteDataSource>(
+    () => FoodItemsRemoteDataSourceImpl(
+      firestore: getIt<FirebaseFirestore>(),
+      auth: getIt<FirebaseAuth>(),
+    ),
+  );
+
+  // Food Items Repository
+  getIt.registerLazySingleton<FoodItemsRepository>(
+    () => FoodItemsRepositoryImpl(getIt<FoodItemsRemoteDataSource>()),
+  );
+
+  // Food Items Use Cases
+  getIt.registerLazySingleton<GetFoodItemsUseCase>(
+    () => GetFoodItemsUseCase(getIt<FoodItemsRepository>()),
+  );
+
+  getIt.registerLazySingleton<DeleteFoodItemUseCase>(
+    () => DeleteFoodItemUseCase(getIt<FoodItemsRepository>()),
+  );
+
+  // Food Items BLoC (factory - new instance each time)
+  getIt.registerFactory<MyFoodItemsBloc>(
+    () => MyFoodItemsBloc(
+      getFoodItemsUseCase: getIt<GetFoodItemsUseCase>(),
+      deleteFoodItemUseCase: getIt<DeleteFoodItemUseCase>(),
+    ),
+  );
+
   // Update Home BLoC registration with new dependencies
   getIt.registerFactory<HomeBloc>(
     () => HomeBloc(
@@ -204,6 +294,14 @@ Future<void> initDependencyInjection() async {
       getFitnessDataWithPermissionsUseCase: getIt<GetFitnessDataWithPermissionsUseCase>(),
       permissionService: getIt<PermissionService>(),
     ),
+  );
+
+  // Meal alarm service for meal reminder notifications
+  getIt.registerLazySingleton<MealAlarmService>(() => MealAlarmService());
+
+  // Delete account service – deletes all user data from Firestore
+  getIt.registerLazySingleton<DeleteAccountService>(
+    () => DeleteAccountService(firestore: getIt<FirebaseFirestore>()),
   );
 
   // Wait for all async registrations to complete

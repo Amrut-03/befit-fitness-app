@@ -21,7 +21,7 @@ class CustomBottomNavBar extends StatefulWidget {
 
 class _CustomBottomNavBarState extends State<CustomBottomNavBar>
     with SingleTickerProviderStateMixin {
-  bool _isExpanded = false;
+  final ValueNotifier<bool> _isExpandedNotifier = ValueNotifier<bool>(false);
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _rotationAnimation;
@@ -91,19 +91,18 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
 
   @override
   void dispose() {
+    _isExpandedNotifier.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
   void _toggleExpansion() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
+    _isExpandedNotifier.value = !_isExpandedNotifier.value;
+    if (_isExpandedNotifier.value) {
+      _animationController.forward();
+    } else {
+      _animationController.reverse();
+    }
   }
 
   void _onFloatingButtonTap(int index) {
@@ -220,27 +219,30 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
             },
             child: RotationTransition(
               turns: _rotationAnimation,
-              child: Container(
-                width: 60.w,
-                height: 60.h,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _isExpandedNotifier,
+                builder: (_, isExpanded, __) => Container(
+                  width: 60.w,
+                  height: 60.h,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.4),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      isExpanded ? Icons.close : Icons.add,
+                      key: ValueKey<bool>(isExpanded),
+                      color: Colors.white,
+                      size: 30.sp,
                     ),
-                  ],
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    _isExpanded ? Icons.close : Icons.add,
-                    key: ValueKey<bool>(_isExpanded),
-                    color: Colors.white,
-                    size: 30.sp,
                   ),
                 ),
               ),
@@ -253,8 +255,10 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
         Positioned(
           bottom: 140.h,
           left: centerX - 25.w,
-          child: IgnorePointer(
-            ignoring: !_isExpanded && _animationController.value == 0,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isExpandedNotifier,
+            builder: (_, isExpanded, __) => IgnorePointer(
+              ignoring: !isExpanded && _animationController.value == 0,
             child: SlideTransition(
               position: _slideAnimation1,
               child: ScaleTransition(
@@ -277,14 +281,17 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 ),
               ),
             ),
+            ),
           ),
         ),
         // Top-left button (Briefcase) - left arc
         Positioned(
           bottom: 100.h,
           left: centerX - 90.w,
-          child: IgnorePointer(
-            ignoring: !_isExpanded && _animationController.value == 0,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isExpandedNotifier,
+            builder: (_, isExpanded, __) => IgnorePointer(
+              ignoring: !isExpanded && _animationController.value == 0,
             child: SlideTransition(
               position: _slideAnimation2,
               child: ScaleTransition(
@@ -307,14 +314,17 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 ),
               ),
             ),
+            ),
           ),
         ),
         // Top-right button (Question mark) - right arc
         Positioned(
           bottom: 100.h,
           left: centerX + 40.w,
-          child: IgnorePointer(
-            ignoring: !_isExpanded && _animationController.value == 0,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isExpandedNotifier,
+            builder: (_, isExpanded, __) => IgnorePointer(
+              ignoring: !isExpanded && _animationController.value == 0,
             child: SlideTransition(
               position: _slideAnimation3,
               child: ScaleTransition(
@@ -339,6 +349,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
             ),
           ),
         ),
+        )
       ],
       ),
     );

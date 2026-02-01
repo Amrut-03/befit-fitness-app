@@ -1,6 +1,5 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
-import 'package:befit_fitness_app/core/widgets/widgets.dart';
-import 'package:befit_fitness_app/l10n/app_localizations.dart';
+import 'package:befit_fitness_app/core/widgets/text_rich.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -17,9 +16,10 @@ class OnboardingCarousel extends StatefulWidget {
 
 class _OnboardingCarouselState extends State<OnboardingCarousel> {
   final PageController _pageController = PageController();
-  int _currentPage = 0;
+  final ValueNotifier<int> _currentPageNotifier = ValueNotifier<int>(0);
   Timer? _autoSlideTimer;
-  bool _isUserInteracting = false;
+  final ValueNotifier<bool> _isUserInteractingNotifier =
+      ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -30,6 +30,8 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
   @override
   void dispose() {
     _autoSlideTimer?.cancel();
+    _currentPageNotifier.dispose();
+    _isUserInteractingNotifier.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -37,9 +39,11 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
   void _startAutoSlide() {
     _autoSlideTimer?.cancel();
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (_pageController.hasClients && !_isUserInteracting && mounted) {
-        final nextPage =
-            (_currentPage + 1) % OnboardingContentRepository.totalPages;
+      if (_pageController.hasClients &&
+          !_isUserInteractingNotifier.value &&
+          mounted) {
+        final nextPage = (_currentPageNotifier.value + 1) %
+            OnboardingContentRepository.totalPages;
         _pageController.animateToPage(
           nextPage,
           duration: const Duration(milliseconds: 500),
@@ -55,22 +59,16 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
   }
 
   void _onPageChanged(int index) {
-    setState(() {
-      _currentPage = index;
-    });
+    _currentPageNotifier.value = index;
   }
 
   void _onPageScrollStart() {
-    setState(() {
-      _isUserInteracting = true;
-    });
+    _isUserInteractingNotifier.value = true;
     // Resume auto-slide after 6 seconds of no interaction
     _stopAutoSlide();
     Future.delayed(const Duration(seconds: 6), () {
       if (mounted) {
-        setState(() {
-          _isUserInteracting = false;
-        });
+        _isUserInteractingNotifier.value = false;
         _startAutoSlide();
       }
     });
@@ -136,11 +134,14 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
         ),
         SizedBox(height: 20.h),
         // Page indicators
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            pages.length,
-            (index) => _buildPageIndicator(index == _currentPage),
+        ValueListenableBuilder<int>(
+          valueListenable: _currentPageNotifier,
+          builder: (_, currentPage, __) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              pages.length,
+              (index) => _buildPageIndicator(index == currentPage),
+            ),
           ),
         ),
         SizedBox(height: 20.h),

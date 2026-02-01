@@ -6,7 +6,6 @@ class AppConfig {
   static const String appVersion = '1.0.0';
   static const String appBuildNumber = '1';
 
-  // Environment
   static const bool isProduction = kReleaseMode;
   static const bool isDevelopment = kDebugMode;
 
@@ -18,7 +17,20 @@ class AppConfig {
       dotenv.env['GOOGLE_MAPS_API_KEY'] ??
       ''; // Will be set in AndroidManifest.xml
 
-  // Firebase Configuration
+  static String get googleSignInServerClientId =>
+      dotenv.env['GOOGLE_SIGN_IN_SERVER_CLIENT_ID'] ??
+      '475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com'; // Fallback for development
+
+  static String get rapidApiKey {
+    try {
+      final env = dotenv.env;
+      final key = env['EXERCISE_DB_API_KEY'] ?? '';
+      return key;
+    } catch (_) {
+      return '';
+    }
+  }
+
   static const String firebaseProjectId = 'befit-app';
 
   // App URLs

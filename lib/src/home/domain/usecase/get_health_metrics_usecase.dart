@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import 'package:befit_fitness_app/src/home/core/errors/failures.dart';
+import 'package:befit_fitness_app/core/error/failures.dart';
 import 'package:befit_fitness_app/src/home/domain/entities/health_metrics.dart';
 import 'package:befit_fitness_app/src/home/domain/repositories/home_repository.dart';
 
@@ -9,8 +9,8 @@ class GetHealthMetricsUseCase {
 
   GetHealthMetricsUseCase(this.repository);
 
-  Future<Either<Failure, HealthMetrics>> call(String email) {
-    return repository.getHealthMetrics(email);
+  Future<Either<Failure, HealthMetrics>> call(String userId) {
+    return repository.getHealthMetrics(userId);
   }
 }
 
