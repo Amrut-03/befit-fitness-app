@@ -87,7 +87,10 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         updateData['health.weight'] = profile.weight; // in kg
       }
       updateData['health.updatedAt'] = now;
-      
+      // Remove duplicate fields so only health.height and health.weight are used
+      updateData['health.heightCm'] = FieldValue.delete();
+      updateData['health.weightKg'] = FieldValue.delete();
+
       // Set createdAt in meta if document doesn't exist
       if (!docSnapshot.exists) {
         updateData['meta.createdAt'] = now;
@@ -153,7 +156,10 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         updateData['health.weight'] = profile.weight; // in kg
       }
       updateData['health.updatedAt'] = now;
-      
+      // Remove duplicate fields so only health.height and health.weight are used
+      updateData['health.heightCm'] = FieldValue.delete();
+      updateData['health.weightKg'] = FieldValue.delete();
+
       // Set createdAt in meta if document doesn't exist
       if (!docSnapshot.exists) {
         updateData['meta.createdAt'] = now;
@@ -204,7 +210,8 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         }
       }
 
-      // Read height and weight from health map - try nested first, then flat keys
+      // Read height and weight from health map - use only health.height and health.weight
+      // (no health.heightCm / health.weightKg; those are removed on save)
       double? height;
       final heightValue = health['height'] ?? data['health.height'];
       if (heightValue != null) {
@@ -236,46 +243,20 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<bool> isProfileComplete(String userId) async {
     try {
-      print('[UserProfileRemoteDataSource] Checking profile completion for userId: $userId');
       final docSnapshot = await firestore.collection('users').doc(userId).get();
-      
-      print('[UserProfileRemoteDataSource] Document exists: ${docSnapshot.exists}');
-      
-      if (!docSnapshot.exists || docSnapshot.data() == null) {
-        print('[UserProfileRemoteDataSource] Document does not exist or data is null. Returning false.');
-        return false;
-      }
+      if (!docSnapshot.exists || docSnapshot.data() == null) return false;
 
       final data = docSnapshot.data()!;
-      print('[UserProfileRemoteDataSource] Document data keys: ${data.keys.toList()}');
-      
-      // Firestore stores dot-notation fields as flat keys (e.g., "profile.isProfileComplete")
-      // So we need to check the flat key directly, not as a nested map
-      final isCompleteKey = 'profile.isProfileComplete';
-      
-      // First try to get from flat key (dot notation)
+      const isCompleteKey = 'profile.isProfileComplete';
       if (data.containsKey(isCompleteKey)) {
-        final isComplete = data[isCompleteKey] as bool? ?? false;
-        print('[UserProfileRemoteDataSource] Found isProfileComplete in flat key: $isComplete');
-        return isComplete;
+        return data[isCompleteKey] as bool? ?? false;
       }
-      
-      // Fallback: try nested map structure (in case data was saved differently)
       final profile = data['profile'] as Map<String, dynamic>?;
       if (profile != null && profile.isNotEmpty) {
-        final isComplete = profile['isProfileComplete'] as bool? ?? false;
-        print('[UserProfileRemoteDataSource] Found isProfileComplete in nested map: $isComplete');
-        return isComplete;
+        return profile['isProfileComplete'] as bool? ?? false;
       }
-      
-      // If neither structure found, return false
-      print('[UserProfileRemoteDataSource] isProfileComplete not found in either flat key or nested map. Returning false.');
       return false;
     } catch (e) {
-      // Throw exception instead of returning false to distinguish read errors
-      // This allows the router to retry or handle errors appropriately
-      print('[UserProfileRemoteDataSource] ERROR checking profile completion: $e');
-      print('[UserProfileRemoteDataSource] Stack trace: ${StackTrace.current}');
       throw Exception('Failed to check profile completion: ${e.toString()}');
     }
   }

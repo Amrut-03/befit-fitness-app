@@ -76,10 +76,11 @@ class EnhancedGoalService {
       
       if (todayDoc.exists) {
         final data = todayDoc.data()!;
+        final rawSteps = (data['stepCountGoalValue'] as num?)?.toInt() ??
+            (data['steps'] as num?)?.toInt() ??
+            prefs.getInt(_stepsGoalKey) ?? 10000;
         return {
-          'steps': (data['stepCountGoalValue'] as num?)?.toInt() ?? 
-                   (data['steps'] as num?)?.toInt() ?? // Backward compatibility
-                   prefs.getInt(_stepsGoalKey) ?? 10000,
+          'steps': rawSteps.clamp(1000, GoalService.maxStepsGoal),
           'calories': (data['caloriesBurnGoalValue'] as num?)?.toDouble() ?? 
                       (data['calories'] as num?)?.toDouble() ?? // Backward compatibility
                       prefs.getDouble(_caloriesGoalKey) ?? 2000.0,
@@ -90,12 +91,13 @@ class EnhancedGoalService {
       }
     } catch (e) {
       // If Firestore fails, fall back to SharedPreferences
-      debugPrint('Error fetching today\'s goals from Firestore: $e');
+      if (kDebugMode) debugPrint('Error fetching today\'s goals from Firestore: $e');
     }
     
     // Fallback to SharedPreferences
+    final fallbackSteps = prefs.getInt(_stepsGoalKey) ?? 10000;
     return {
-      'steps': prefs.getInt(_stepsGoalKey) ?? 10000,
+      'steps': fallbackSteps.clamp(1000, GoalService.maxStepsGoal),
       'calories': prefs.getDouble(_caloriesGoalKey) ?? 2000.0,
       'moveMin': prefs.getInt(_moveMinGoalKey) ?? 30,
     };
@@ -104,7 +106,7 @@ class EnhancedGoalService {
   /// Validate goal values
   String? validateStepsGoal(int steps) {
     if (steps < 1000) return 'Steps goal should be at least 1,000 steps';
-    if (steps > 30000) return 'Steps goal should not exceed 30,000 steps (realistic daily limit)';
+    if (steps > GoalService.maxStepsGoal) return 'Steps goal should not exceed ${GoalService.maxStepsGoal} steps (realistic daily limit)';
     return null;
   }
 
@@ -135,12 +137,13 @@ class EnhancedGoalService {
       final isBeforeNoon = _isBeforeNoon();
       final targetDate = isBeforeNoon ? now : now.add(const Duration(days: 1));
       final dateString = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+      final stepsToSave = stepCountGoalValue.clamp(1000, GoalService.maxStepsGoal);
 
       // Only update SharedPreferences if goal is for today (before noon)
       // If goal is for tomorrow (after noon), don't update SharedPreferences yet
       if (isBeforeNoon) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt(_stepsGoalKey, stepCountGoalValue);
+        await prefs.setInt(_stepsGoalKey, stepsToSave);
         await prefs.setDouble(_caloriesGoalKey, caloriesBurnGoalValue);
         await prefs.setInt(_moveMinGoalKey, moveMinGoalValue);
       }
@@ -160,7 +163,7 @@ class EnhancedGoalService {
       
       // Prepare update data
       final updateData = <String, dynamic>{
-        'stepCountGoalValue': stepCountGoalValue,
+        'stepCountGoalValue': stepsToSave,
         'caloriesBurnGoalValue': caloriesBurnGoalValue,
         'moveMinGoalValue': moveMinGoalValue,
         'targetDate': dateString,
@@ -307,10 +310,10 @@ class EnhancedGoalService {
           purpose: userProfile.purpose,
           shouldSaveCaloriesToProfile: false, // Already saved above
         );
-        debugPrint('EnhancedGoalService: Macros recalculated after calories update');
+        if (kDebugMode) debugPrint('EnhancedGoalService: Macros recalculated after calories update');
       }
     } catch (e) {
-      debugPrint('EnhancedGoalService: Error recalculating macros: $e');
+      if (kDebugMode) debugPrint('EnhancedGoalService: Error recalculating macros: $e');
       // Don't throw - macro recalculation failure shouldn't break goal saving
     }
   }
@@ -342,7 +345,7 @@ class EnhancedGoalService {
         };
       }).toList();
     } catch (e) {
-      debugPrint('Error fetching goal history: $e');
+      if (kDebugMode) debugPrint('Error fetching goal history: $e');
       return [];
     }
   }
@@ -386,7 +389,7 @@ class EnhancedGoalService {
       }, SetOptions(merge: true));
     } catch (e) {
       // Silently fail - not critical
-      debugPrint('Error saving goal completion status: $e');
+      if (kDebugMode) debugPrint('Error saving goal completion status: $e');
     }
   }
 
@@ -417,7 +420,7 @@ class EnhancedGoalService {
           .doc(dateString)
           .set(updateData, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error updating goal completion: $e');
+      if (kDebugMode) debugPrint('Error updating goal completion: $e');
     }
   }
 
@@ -447,7 +450,7 @@ class EnhancedGoalService {
         'moveMinCompleted': 0,
       };
     } catch (e) {
-      debugPrint('Error getting goal completion: $e');
+      if (kDebugMode) debugPrint('Error getting goal completion: $e');
       return {
         'stepCountCompleted': 0,
         'caloriesBurnt': 0.0,
@@ -466,6 +469,8 @@ class EnhancedGoalService {
     int? age,
     String? gender,
     String? activityLevel,
+    String? purpose,
+    String? workoutType,
   }) async {
     // Get average from last 7 days if available
     final history = await getGoalHistory(limit: 7);
@@ -535,27 +540,27 @@ class EnhancedGoalService {
       
       suggestedCalories = bmr * activityMultiplier;
       
-      // Calculate steps from calories using GoalService method
+      // Steps: use 10k for muscle gain/strength (realistic), else from calories
       if (suggestedCalories > 0) {
         try {
-          final calculatedSteps = GoalService.calculateStepsFromCalories(suggestedCalories);
-          if (calculatedSteps > 0) {
-            suggestedSteps = calculatedSteps;
-          }
+          suggestedSteps = GoalService.getStepsGoalFromProfile(
+            calculatedCalories: suggestedCalories,
+            purpose: purpose,
+            workoutType: workoutType,
+          );
         } catch (e) {
-          debugPrint('Error calculating steps from calories: $e');
-          // Fallback: approximately 0.04 steps per calorie
-          suggestedSteps = (suggestedCalories * 0.04).round();
+          if (kDebugMode) debugPrint('Error calculating steps from calories: $e');
+          suggestedSteps = 10000;
         }
       }
     } else {
       // If health data is missing, don't use BMR calculation
       // Will rely on previous goal history only
-      debugPrint('Smart goal: Missing health data (weight, height, age, or gender), using history only');
+      if (kDebugMode) debugPrint('Smart goal: Missing health data (weight, height, age, or gender), using history only');
     }
 
     return {
-      'steps': suggestedSteps.clamp(1000, 30000), // Updated max to match validation
+      'steps': suggestedSteps.clamp(1000, GoalService.maxStepsGoal),
       'calories': suggestedCalories.clamp(500, 10000), // Match validation limits
       'moveMin': suggestedMoveMin.clamp(5, 300), // Match validation limits
     };

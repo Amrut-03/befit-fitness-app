@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +7,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/di/injection_container.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
+import 'package:befit_fitness_app/src/home/data/services/meal_alarm_service.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/plan_your_diet_screen.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/diet_plan_detail_screen.dart';
 
@@ -57,7 +61,7 @@ class _DietPlanningScreenState extends State<DietPlanningScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading diet plans: $e');
+      if (kDebugMode) debugPrint('Error loading diet plans: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -179,6 +183,24 @@ class _DietPlanningScreenState extends State<DietPlanningScreen> {
     } catch (e) {
       return dateString;
     }
+  }
+
+  /// Safely get meals as a list (Firestore may return List or Map).
+  static List<dynamic> _mealsAsList(dynamic value) {
+    if (value == null) return [];
+    if (value is List<dynamic>) return value;
+    if (value is Map) {
+      final map = value as Map;
+      final keys = map.keys.whereType<String>().toList()
+        ..sort((a, b) {
+          final na = int.tryParse(a);
+          final nb = int.tryParse(b);
+          if (na != null && nb != null) return na.compareTo(nb);
+          return a.compareTo(b);
+        });
+      return keys.map((k) => map[k]).whereType<dynamic>().toList();
+    }
+    return [];
   }
 
   double _calculateTotalCalories(List<dynamic> meals) {
@@ -384,11 +406,40 @@ class _DietPlanningScreenState extends State<DietPlanningScreen> {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } else {
-        // Setting to inactive - remove dietPlanId from dailyGoal
+        // Setting to inactive - remove dietPlanId from dailyGoal, cancel meal reminders,
+        // and reset consumed state for this plan so items show unmarked when plan is viewed again
         await dailyGoalRef.set({
           'dietPlanId': null,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
+        await getIt<MealAlarmService>().cancelAllAlarms();
+
+        final planRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(_userId)
+            .collection('dietPlan')
+            .doc(planId);
+        final planSnap = await planRef.get();
+        if (planSnap.exists) {
+          final data = planSnap.data()!;
+          final meals = data['meals'];
+          if (meals is List && meals.isNotEmpty) {
+            final resetMeals = meals.map((m) {
+              if (m is Map<String, dynamic>) {
+                final meal = Map<String, dynamic>.from(m);
+                final product = meal['product'] as Map<String, dynamic>? ?? {};
+                product['isConsumed'] = false;
+                meal['product'] = product;
+                return meal;
+              }
+              return m;
+            }).toList();
+            await planRef.update({
+              'meals': resetMeals,
+              'updatedAt': DateTime.now().toIso8601String(),
+            });
+          }
+        }
       }
 
       // Update the current plan status
@@ -449,11 +500,7 @@ class _DietPlanningScreenState extends State<DietPlanningScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            )
+          ? const ShimmerDietPlanning()
           : _dietPlans.isEmpty
               ? _buildEmptyState()
               : RefreshIndicator(
@@ -490,7 +537,7 @@ class _DietPlanningScreenState extends State<DietPlanningScreen> {
   }
 
   Widget _buildDietPlanCard(Map<String, dynamic> plan) {
-    final meals = plan['meals'] as List<dynamic>? ?? [];
+    final meals = _mealsAsList(plan['meals']);
     final totalCalories = _calculateTotalCalories(meals);
     final planName = plan['name'] as String? ?? 'Untitled Plan';
     final date = plan['date'] as String? ?? '';

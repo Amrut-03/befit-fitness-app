@@ -92,7 +92,7 @@ class MacroCalculationService {
   }) async {
     try {
       if (userId.isEmpty) {
-        debugPrint('MacroCalculationService: Cannot save macros - userId is empty');
+        if (kDebugMode) debugPrint('MacroCalculationService: Cannot save macros - userId is empty');
         return;
       }
 
@@ -105,9 +105,9 @@ class MacroCalculationService {
         'profile.macros.fat': fat,
       }, SetOptions(merge: true));
 
-      debugPrint('MacroCalculationService: Successfully saved macros - Carbs: ${carbs}g, Protein: ${protein}g, Fat: ${fat}g');
+      if (kDebugMode) debugPrint('MacroCalculationService: Successfully saved macros - Carbs: ${carbs}g, Protein: ${protein}g, Fat: ${fat}g');
     } catch (e) {
-      debugPrint('MacroCalculationService: Error saving macros: $e');
+      if (kDebugMode) debugPrint('MacroCalculationService: Error saving macros: $e');
       throw Exception('Failed to save macros: ${e.toString()}');
     }
   }
@@ -119,7 +119,7 @@ class MacroCalculationService {
   }) async {
     try {
       if (userId.isEmpty) {
-        debugPrint('MacroCalculationService: Cannot save calories - userId is empty');
+        if (kDebugMode) debugPrint('MacroCalculationService: Cannot save calories - userId is empty');
         return;
       }
 
@@ -130,9 +130,9 @@ class MacroCalculationService {
         'profile.calorie': calories,
       }, SetOptions(merge: true));
 
-      debugPrint('MacroCalculationService: Successfully saved calories to profile.calorie: $calories');
+      if (kDebugMode) debugPrint('MacroCalculationService: Successfully saved calories to profile.calorie: $calories');
     } catch (e) {
-      debugPrint('MacroCalculationService: Error saving calories to profile: $e');
+      if (kDebugMode) debugPrint('MacroCalculationService: Error saving calories to profile: $e');
       throw Exception('Failed to save calories to profile: ${e.toString()}');
     }
   }
@@ -166,7 +166,7 @@ class MacroCalculationService {
         fat: macros['fat']!,
       );
     } catch (e) {
-      debugPrint('MacroCalculationService: Error calculating and saving macros: $e');
+      if (kDebugMode) debugPrint('MacroCalculationService: Error calculating and saving macros: $e');
       rethrow;
     }
   }

@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'package:befit_fitness_app/src/fitness_tracker/presentation/services/permission_service.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/widgets/overall_health_widget.dart';
+import 'package:befit_fitness_app/src/fitness_tracker/presentation/widgets/calculator_readings_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_event.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_state.dart';
@@ -20,6 +24,8 @@ import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_bloc.dart';
 import 'package:befit_fitness_app/src/auth/presentation/bloc/auth_state.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/drawer_widget.dart';
+import 'package:hidden_drawer_menu/controllers/simple_hidden_drawer_controller.dart';
+import 'package:hidden_drawer_menu/simple_hidden_drawer/simple_hidden_drawer.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/custom_bottom_nav_bar.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/discover_section.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/macros_radar_chart.dart';
@@ -28,14 +34,23 @@ import 'package:confetti/confetti.dart';
 import 'package:befit_fitness_app/src/home/data/services/goal_service.dart';
 import 'package:befit_fitness_app/src/home/data/services/enhanced_goal_service.dart';
 import 'package:befit_fitness_app/src/home/data/services/macro_calculation_service.dart';
+import 'package:befit_fitness_app/src/home/data/services/meal_alarm_service.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/goal_editing_page.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/diet_plan_detail_screen.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
+import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart' as profile_model;
+import 'package:befit_fitness_app/src/profile_onboarding/domain/usecase/save_user_profile_usecase.dart';
 import 'package:befit_fitness_app/src/fitness_tracker/domain/repositories/google_fit_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// File-level helper for today's date string (yyyy-MM-dd).
+String _todayDateString() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+}
 
 /// Home page screen
 class HomePage extends StatefulWidget {
@@ -102,8 +117,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         // Already on home
         break;
       case 2:
-        // Navigate to More
-        // TODO: Navigate to More screen
         break;
     }
   }
@@ -129,11 +142,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _loadMacrosForBottomSheet();
     // Load active diet plan
     _loadActiveDietPlan();
+    // Cancel meal reminders if no plan is active for today (e.g. after app restart or plan deactivated elsewhere)
+    _cancelMealAlarmsIfNoActivePlan();
 
     // Set up a listener to refresh consumed macros when returning to this screen
     // Use addPostFrameCallback to ensure context is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (this.mounted) {
         // Fetch home data first - fitness data will be fetched automatically via BlocListener
         context.read<HomeBloc>().add(FetchHomeDataEvent(_userId));
       }
@@ -153,7 +168,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       initialIsFront: _isFrontView,
     );
     _bodyMapController!.addListener(() {
-      if (mounted) {
+      if (this.mounted) {
         setState(() {
           _selectedBodyParts = _bodyMapController!.selectedMuscles;
           _isFrontView = _bodyMapController!.isFront;
@@ -164,20 +179,22 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // This ensures data is up-to-date when navigating back from other screens
     _loadActiveDietPlan();
     _loadMacrosForBottomSheet();
+    _cancelMealAlarmsIfNoActivePlan();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Refresh when app comes to foreground
+    // Refresh when app comes to foreground; cancel meal alarms if no active plan
     if (state == AppLifecycleState.resumed) {
       _loadActiveDietPlan();
       _loadMacrosForBottomSheet();
+      _cancelMealAlarmsIfNoActivePlan();
     }
   }
 
   Future<void> _checkPermissions() async {
-    if (!mounted) return;
+    if (!this.mounted) return;
 
     setState(() {
       _isCheckingPermissions = true;
@@ -187,7 +204,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final permissionService = PermissionService();
       final areGranted = await permissionService.areAllPermissionsGranted();
 
-      if (mounted) {
+      if (this.mounted) {
         setState(() {
           _arePermissionsGranted = areGranted;
           _isCheckingPermissions = false;
@@ -203,7 +220,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           // Recheck after requesting
           final recheckGranted = await permissionService
               .areAllPermissionsGranted();
-          if (mounted) {
+          if (this.mounted) {
             setState(() {
               _arePermissionsGranted = recheckGranted;
             });
@@ -214,7 +231,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               // Final check
               final finalCheck = await permissionService
                   .areAllPermissionsGranted();
-              if (mounted) {
+              if (this.mounted) {
                 setState(() {
                   _arePermissionsGranted = finalCheck;
                 });
@@ -224,7 +241,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      if (mounted) {
+      if (this.mounted) {
         setState(() {
           _arePermissionsGranted = false;
           _isCheckingPermissions = false;
@@ -239,7 +256,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     // Then check every minute to catch midnight
     _goalCheckTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (mounted) {
+      if (this.mounted) {
         _checkAndAutoCalculateGoals();
       }
     });
@@ -251,7 +268,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         firestore: FirebaseFirestore.instance,
       );
       final now = DateTime.now();
-      final todayDateString = _getTodayDateString();
+      final todayDateString = _todayDateString();
       final prefs = await SharedPreferences.getInstance();
 
       final lastAutoCalcDate = prefs.getString('last_auto_calc_date');
@@ -274,7 +291,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         if (!todayDoc.exists) {
           // No document for today - need to calculate
           shouldCalculate = true;
-          debugPrint(
+          if (kDebugMode) debugPrint(
             'Auto goal: New day detected, no document exists - calculating goals',
           );
         } else {
@@ -293,7 +310,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               existingSteps == 10000 &&
               existingMoveMin == 30) {
             shouldCalculate = true;
-            debugPrint(
+            if (kDebugMode) debugPrint(
               'Auto goal: New day detected, document has default values - recalculating from user data',
             );
           } else {
@@ -313,7 +330,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             await prefs.setInt('daily_steps_goal', existingSteps);
             await prefs.setDouble('daily_calories_goal', existingCalories);
             await prefs.setInt('daily_move_min_goal', existingMoveMin);
-            debugPrint(
+            if (kDebugMode) debugPrint(
               'Auto goal: New day detected, loading existing non-default goals and resetting completion values',
             );
           }
@@ -345,10 +362,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         await _autoCalculateAndSaveGoals(goalService);
         // Update last auto-calc date
         await prefs.setString('last_auto_calc_date', todayDateString);
-        debugPrint('Auto goal: Goals calculated and saved to backend');
+        if (kDebugMode) debugPrint('Auto goal: Goals calculated and saved to backend');
       }
     } catch (e) {
-      debugPrint('Error in auto-calculate goals: $e');
+      if (kDebugMode) debugPrint('Error in auto-calculate goals: $e');
     }
   }
 
@@ -396,7 +413,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               );
             }
           } catch (e) {
-            debugPrint('Error fetching from Google Fit: $e');
+            if (kDebugMode) debugPrint('Error fetching from Google Fit: $e');
           }
         }
 
@@ -434,10 +451,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
           if (calculatedCalories > 0) {
             caloriesGoal = calculatedCalories;
-            final calculatedSteps = GoalService.calculateStepsFromCalories(
-              calculatedCalories,
+            stepCountGoal = GoalService.getStepsGoalFromProfile(
+              calculatedCalories: calculatedCalories,
+              purpose: userProfile.purpose,
+              workoutType: userProfile.workoutType,
             );
-            stepCountGoal = calculatedSteps > 0 ? calculatedSteps : 10000;
             moveMinGoal = 30; // Standard move minutes goal
           }
         }
@@ -473,8 +491,44 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       await prefs.setInt('daily_steps_goal', stepCountGoal);
       await prefs.setDouble('daily_calories_goal', caloriesGoal);
       await prefs.setInt('daily_move_min_goal', moveMinGoal);
+
+      // After midnight: deactivate all diet plans, reset meal consumed state, cancel meal reminders
+      try {
+        final plansSnapshot = await goalService.firestore
+            .collection('users')
+            .doc(_userId)
+            .collection('dietPlan')
+            .get();
+        final batch = goalService.firestore.batch();
+        for (final doc in plansSnapshot.docs) {
+          final data = doc.data();
+          final meals = data['meals'];
+          List<dynamic>? resetMeals;
+          if (meals is List) {
+            resetMeals = meals.map((m) {
+              if (m is Map<String, dynamic>) {
+                final meal = Map<String, dynamic>.from(m);
+                final product = meal['product'] as Map<String, dynamic>? ?? {};
+                product['isConsumed'] = false;
+                meal['product'] = product;
+                return meal;
+              }
+              return m;
+            }).toList();
+          }
+          batch.update(doc.reference, {
+            'status': 'inactive',
+            'updatedAt': DateTime.now().toIso8601String(),
+            if (resetMeals != null) 'meals': resetMeals,
+          });
+        }
+        await batch.commit();
+        await getIt<MealAlarmService>().cancelAllAlarms();
+      } catch (e) {
+        if (kDebugMode) debugPrint('Error resetting diet plans at midnight: $e');
+      }
     } catch (e) {
-      debugPrint('Error resetting goals: $e');
+      if (kDebugMode) debugPrint('Error resetting goals: $e');
     }
   }
 
@@ -517,7 +571,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             );
           }
         } catch (e) {
-          debugPrint('Error fetching from Google Fit: $e');
+          if (kDebugMode) debugPrint('Error fetching from Google Fit: $e');
         }
       }
 
@@ -553,13 +607,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       );
 
       if (calculatedCalories > 0) {
-        final calculatedSteps = GoalService.calculateStepsFromCalories(
-          calculatedCalories,
+        final stepsToSave = GoalService.getStepsGoalFromProfile(
+          calculatedCalories: calculatedCalories,
+          purpose: userProfile.purpose,
+          workoutType: userProfile.workoutType,
         );
         final calculatedMoveMin = 30;
 
         await goalService.saveDailyGoals(
-          stepCountGoalValue: calculatedSteps > 0 ? calculatedSteps : 10000,
+          stepCountGoalValue: stepsToSave,
           caloriesBurnGoalValue: calculatedCalories,
           moveMinGoalValue: calculatedMoveMin,
           isPaused: false,
@@ -577,15 +633,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             purpose: userProfile.purpose,
           );
         } catch (e) {
-          debugPrint('Error calculating and saving macros: $e');
+          if (kDebugMode) debugPrint('Error calculating and saving macros: $e');
         }
 
-        if (mounted) {
+        if (this.mounted) {
           _showMotivationalSnackbar();
         }
       }
     } catch (e) {
-      debugPrint('Error auto-calculating goals: $e');
+      if (kDebugMode) debugPrint('Error auto-calculating goals: $e');
     }
   }
 
@@ -636,12 +692,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  String _getTodayDateString() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-  }
+  String _getTodayDateString() => _todayDateString();
 
-  @override
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -758,11 +810,39 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     SizedBox(height: 20.h),
                     if (isLoading)
                       Padding(
-                        padding: EdgeInsets.symmetric(vertical: 40.h),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
+                        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 24.h),
+                        child: Column(
+                          children: [
+                            ShimmerLoading(
+                              child: Container(
+                                height: 80.h,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 16.h),
+                            ShimmerLoading(
+                              child: Container(
+                                height: 80.h,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 16.h),
+                            ShimmerLoading(
+                              child: Container(
+                                height: 80.h,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       )
                     else if (errorMessage != null)
@@ -948,7 +1028,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'caloriesConsumed': _caloriesConsumed,
       };
     } catch (e) {
-      debugPrint('Error loading macros for bottom sheet: $e');
+      if (kDebugMode) debugPrint('Error loading macros for bottom sheet: $e');
       return {
         'error': 'Failed to load macros: ${e.toString()}',
         'carbsConsumed': 0.0,
@@ -1469,12 +1549,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             // Navigate to goal editing page and refresh on return
                             // Use parentContext which is passed to the method
                             Future.delayed(const Duration(milliseconds: 300), () {
-                              if (mounted && parentContext.mounted) {
+                              if (this.mounted && parentContext.mounted) {
                                 parentContext.push(GoalEditingPage.route).then((
                                   result,
                                 ) {
                                   // Refresh goals when returning from goal editing page
-                                  if (result == true && mounted) {
+                                  if (result == true && this.mounted) {
                                     setState(() {});
                                   }
                                 });
@@ -1714,7 +1794,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// Build vertical scrollable muscle picker
   Widget _buildMusclePicker() {
     if (_bodyMapController == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 20.h),
+        child: ShimmerLoading(
+          child: Container(
+            height: 120.h,
+            margin: EdgeInsets.symmetric(horizontal: 16.w),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+          ),
+        ),
+      );
     }
 
     // Get all available muscles
@@ -1965,10 +2057,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         listener: (context, state) {
           // Automatically fetch weekly fitness data when HomeLoaded is first emitted
           // Today's fitness data is already fetched in parallel with home data
-          if (state is HomeLoaded &&
+          if (state is HomeLoaded && state.weightChartFitnessData.isEmpty) {
+            context.read<HomeBloc>().add(const FetchWeightChartDataEvent());
+          } else if (state is HomeLoaded &&
               state.weeklyFitnessData.isEmpty &&
               !state.isFetchingWeeklyData) {
-            // Fetch weekly data for charts (less critical, can load in background)
             context.read<HomeBloc>().add(const FetchWeeklyFitnessDataEvent());
           }
 
@@ -1984,38 +2077,45 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         },
         child: BlocBuilder<HomeBloc, HomeState>(
           builder: (context, state) {
-            return RefreshIndicator(
-              backgroundColor: AppColors.primary,
-              color: Colors.black,
-              onRefresh: () async {
-                if (mounted) {
-                  context.read<HomeBloc>().add(RefreshHomeDataEvent(_userId));
-                  context.read<HomeBloc>().add(const FetchFitnessDataEvent());
-                  context.read<HomeBloc>().add(
-                    const FetchWeeklyFitnessDataEvent(),
-                  );
-                  // Refresh consumed macros and radar chart
-                  await _loadConsumedMacros();
-                }
-              },
-              child: Scaffold(
-                backgroundColor: AppColors.background,
-                drawer: state is HomeLoaded ? HomeDrawer(state: state) : null,
-                bottomNavigationBar: state is HomeLoaded
-                    ? CustomBottomNavBar(
-                        currentIndex: _currentNavIndex,
-                        onTap: _onNavItemTapped,
-                        onCenterButtonTap: _onCenterButtonTapped,
-                      )
-                    : null,
-                body: Stack(
+            return SimpleHiddenDrawer(
+              menu: const HiddenDrawerMenuContent(),
+              screenSelectedBuilder: (position, controller) {
+                return RefreshIndicator(
+                  backgroundColor: AppColors.primary,
+                  color: Colors.black,
+                  onRefresh: () async {
+                    if (this.mounted) {
+                      context.read<HomeBloc>().add(RefreshHomeDataEvent(_userId));
+                      context.read<HomeBloc>().add(const FetchFitnessDataEvent());
+                      context.read<HomeBloc>().add(
+                        const FetchWeightChartDataEvent(),
+                      );
+                      await _loadConsumedMacros();
+                    }
+                  },
+                  child: Scaffold(
+                    backgroundColor: AppColors.surface,
+                    body: Stack(
                   children: [
-                    if (state is HomeLoading)
-                      const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+                    // Linear gradient background
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                            colors: [
+                              AppColors.surface.withOpacity(0.8),
+                              AppColors.primary.withOpacity(0.3),
+                              AppColors.surface.withOpacity(0.8),
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
                         ),
-                      )
+                      ),
+                    ),
+                    if (state is HomeLoading)
+                      const ShimmerHomeContent()
                     else if (state is HomeError)
                       Center(
                         child: Column(
@@ -2031,7 +2131,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             SizedBox(height: 20.h),
                             ElevatedButton(
                               onPressed: () {
-                                if (mounted) {
+                                if (this.mounted) {
                                   context.read<HomeBloc>().add(
                                     FetchHomeDataEvent(_userId),
                                   );
@@ -2062,7 +2162,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ),
                   ],
                 ),
-              ),
+                  ),
+                );
+              },
             );
           },
         ),
@@ -2104,9 +2206,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _previousCalories = calories;
         _previousMoveMin = moveMin;
 
-        return Padding(
-          padding: EdgeInsets.all(20.w),
-          child: SafeArea(
+        final user = FirebaseAuth.instance.currentUser;
+        final firstName = state.userProfile.firstName ??
+            user?.displayName?.split(' ').first ??
+            user?.email?.split('@').first ??
+            'User';
+        final photoUrl = user?.photoURL;
+
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Stack(
               children: [
                 SingleChildScrollView(
@@ -2114,8 +2223,118 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: 10.h),
+                      // Top header: left = profile photo + first name with emoji (tap opens drawer), right = notification bell
+                      Row(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              SimpleHiddenDrawerController.of(context).toggle();
+                            },
+                            borderRadius: BorderRadius.circular(30.r),
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 8.w),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24.r,
+                                    backgroundColor: AppColors.primary.withOpacity(0.3),
+                                    backgroundImage: photoUrl != null && photoUrl.isNotEmpty
+                                        ? NetworkImage(photoUrl)
+                                        : null,
+                                    child: photoUrl == null || photoUrl.isEmpty
+                                        ? Text(
+                                            firstName.isNotEmpty
+                                                ? firstName[0].toUpperCase()
+                                                : '?',
+                                            style: GoogleFonts.ubuntu(
+                                              fontSize: 20.sp,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  SizedBox(width: 12.w),
+                                  Text(
+                                    '$firstName 👋',
+                                    style: GoogleFonts.ubuntu(
+                                      color: Colors.white,
+                                      fontSize: 20.sp,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () {
+                              context.pushNamed('notifications');
+                            },
+                            icon: Icon(
+                              Icons.notifications_outlined,
+                              color: Colors.white,
+                              size: 26.sp,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
                       const AnimatedTextWidget(),
+                      SizedBox(height: 20.h),
+                      // Fitness tracker: pie chart (left) + right side vertical readings (steps, calories, move min)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 250.w,
+                            child: OverallHealthWidget(
+                              stepsPercentage: stepsPercentage,
+                              caloriesPercentage: caloriesPercentage,
+                              moveMinPercentage: moveMinPercentage,
+                              steps: steps,
+                              calories: calories,
+                              moveMin: moveMin,
+                              previousSteps: null,
+                              previousCalories: null,
+                              previousMoveMin: null,
+                              onTap: () {
+                                _showHealthMetricsBottomSheet(
+                                  context,
+                                  state,
+                                  stepsPercentage: stepsPercentage,
+                                  caloriesPercentage: caloriesPercentage,
+                                  moveMinPercentage: moveMinPercentage,
+                                  steps: steps,
+                                  calories: calories,
+                                  moveMin: moveMin,
+                                );
+                              },
+                              onInfoTap: () {
+                                _showHealthEducationBottomSheet(context);
+                              },
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          SizedBox(
+                            width: 70.w,
+                            child: CalculatorReadingsWidget(
+                              steps: steps,
+                              calories: calories,
+                              moveMin: moveMin,
+                              previousSteps: null,
+                              previousCalories: null,
+                              previousMoveMin: null, 
+                              onClick: () {},
+                            ),
+                          ),
+                        ],
+                      ),
                       SizedBox(height: 20.h),
                       // Body Part Selector - Interactive muscle selection
                       Container(
@@ -2235,9 +2454,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               width: MediaQuery.of(context).size.width - 72.w,
                               height: 450.h,
                               child: _bodyMapController == null
-                                  ? Center(
-                                      child: CircularProgressIndicator(
-                                        color: AppColors.primary,
+                                  ? ShimmerLoading(
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.06),
+                                          borderRadius: BorderRadius.circular(16.r),
+                                        ),
                                       ),
                                     )
                                   : AnimatedBuilder(
@@ -2350,7 +2574,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           ],
                         ),
                       ),
-                      // Macros Radar Chart - Show message if no active diet plan for today
+                      // Macros Radar Chart - Always show so the chart is visible; show loading only while fetching plan
                       _isLoadingActivePlan
                           ? Container(
                               padding: EdgeInsets.all(40.w),
@@ -2363,86 +2587,84 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   width: 1,
                                 ),
                               ),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primary,
+                              child: ShimmerLoading(
+                                child: Container(
+                                  height: 160.h,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.06),
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
                                 ),
                               ),
                             )
-                          : _activeDietPlanId != null && _activeDietPlanId!.isNotEmpty
-                              ? MacrosRadarChart(
-                                  carbsPercentage: _getCarbsPercentage(),
-                                  proteinPercentage: _getProteinPercentage(),
-                                  fatPercentage: _getFatPercentage(),
-                                  carbsGoal: _carbsGoal,
-                                  proteinGoal: _proteinGoal,
-                                  fatGoal: _fatGoal,
-                                  onTap: () {
-                                    _showDailyDietGoalBottomSheet(context);
-                                  },
-                                )
-                              : Container(
-                                  padding: EdgeInsets.all(40.w),
-                                  margin: EdgeInsets.only(bottom: 20.h),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black,
-                                    borderRadius: BorderRadius.circular(16.r),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.1),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.restaurant_menu_outlined,
-                                        color: Colors.white.withOpacity(0.5),
-                                        size: 48.sp,
-                                      ),
-                                      SizedBox(height: 16.h),
-                                      Text(
-                                        'No Active Diet Plan',
-                                        style: GoogleFonts.ubuntu(
-                                          color: Colors.white,
-                                          fontSize: 18.sp,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8.h),
-                                      Text(
-                                        'Activate a diet plan to track your daily macros consumption',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.ubuntu(
-                                          color: Colors.white.withOpacity(0.7),
-                                          fontSize: 14.sp,
-                                        ),
-                                      ),
-                                      SizedBox(height: 16.h),
-                                      ElevatedButton(
-                                        onPressed: () async {
-                                          await context.push<bool>('/diet-planning');
-                                          // Always refresh when returning from diet planning screen
-                                          // This ensures active plan updates are reflected immediately
-                                          if (mounted) {
-                                            _loadActiveDietPlan();
-                                            _loadMacrosForBottomSheet();
-                                          }
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.black,
-                                        ),
-                                        child: Text(
-                                          'View Diet Plans',
-                                          style: GoogleFonts.ubuntu(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                          : MacrosRadarChart(
+                              carbsPercentage: _getCarbsPercentage(),
+                              proteinPercentage: _getProteinPercentage(),
+                              fatPercentage: _getFatPercentage(),
+                              carbsGoal: _carbsGoal,
+                              proteinGoal: this._proteinGoal,
+                              fatGoal: _fatGoal,
+                              onTap: () {
+                                _showDailyDietGoalBottomSheet(context);
+                              },
+                            ),
+                      // No active plan message below the chart when applicable
+                      if (!_isLoadingActivePlan &&
+                          (_activeDietPlanId == null || _activeDietPlanId!.isEmpty))
+                        Container(
+                          padding: EdgeInsets.all(20.w),
+                          margin: EdgeInsets.only(bottom: 20.h),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(16.r),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.1),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'No Active Diet Plan',
+                                style: GoogleFonts.ubuntu(
+                                  color: Colors.white,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8.h),
+                              Text(
+                                'Activate a diet plan to track your daily macros',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.ubuntu(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 13.sp,
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  await context.push<bool>('/diet-planning');
+                                  if (this.mounted) {
+                                    _loadActiveDietPlan();
+                                    _loadMacrosForBottomSheet();
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.black,
+                                ),
+                                child: Text(
+                                  'View Diet Plans',
+                                  style: GoogleFonts.ubuntu(
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ),
                       SizedBox(height: 20.h),
                       // Active Diet Plan Section - Only show if there's an active plan ID for today
                       if (_isLoadingActivePlan)
@@ -2457,9 +2679,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               width: 1,
                             ),
                           ),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
+                          child: ShimmerLoading(
+                            child: Container(
+                              height: 80.h,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
                             ),
                           ),
                         )
@@ -2467,20 +2693,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         _buildActiveDietPlanCard()
                       else
                         const SizedBox.shrink(),
-                      // Exercise activities tile - commented out
-                      // ActivitiesTile(
-                      //   activities: _getActivities(),
-                      //   onMoreTap: () {
-                      //     // TODO: Navigate to more activities screen
-                      //   },
-                      //   onActivityTap: (activity) {
-                      //     context.push(
-                      //       ActivityTrackingScreen.route,
-                      //       extra: activity,
-                      //     );
-                      //   },
-                      // ),
-                      // Track progress charts
                       SizedBox(
                         height: 300.h,
                         child: SingleChildScrollView(
@@ -2495,6 +2707,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   chartType: ChartType.weight,
                                   isWeekly: true,
                                   series: _getWeightChartData(state),
+                                  onAddTap: () => _showUpdateWeightDialog(context, state),
                                 ),
                               ),
                               SizedBox(width: 20.w),
@@ -2508,18 +2721,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   series: _getCaloriesChartData(state),
                                 ),
                               ),
-                              // Heart Rate Track - commented out
-                              // SizedBox(width: 20.w),
-                              // SizedBox(
-                              //   width: MediaQuery.of(context).size.width - 40.w,
-                              //   child: HealthMetricsChart(
-                              //     title: 'Heart Rate Track',
-                              //     subtitle: 'Heart Rate (bpm)',
-                              //     chartType: ChartType.heartRate,
-                              //     isWeekly: true,
-                              //     series: _getHeartRateChartData(state),
-                              //   ),
-                              // ),
+                              SizedBox(width: 20.w),
+                              SizedBox(
+                                width: MediaQuery.of(context).size.width - 40.w,
+                                child: HealthMetricsChart(
+                                  title: 'Steps',
+                                  subtitle: 'Daily steps',
+                                  chartType: ChartType.steps,
+                                  isWeekly: true,
+                                  useBarChart: true,
+                                  series: _getStepsChartData(state),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -2542,7 +2755,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             await context.push<bool>('/diet-planning');
                             // Always refresh when returning from diet planning screen
                             // This ensures active plan updates are reflected immediately
-                            if (mounted) {
+                            if (this.mounted) {
                               _loadActiveDietPlan();
                               _loadMacrosForBottomSheet();
                             }
@@ -2551,86 +2764,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           } else if (cardName == 'Workout Plan') {
                             context.push('/workout-list');
                           }
-                          // Handle other card taps here
                         },
                       ),
                       SizedBox(height: 20.h),
-                      // Text(
-                      //   "See All",
-                      //   style: GoogleFonts.ubuntu(
-                      //     color: Colors.black,
-                      //     fontSize: 20,
-                      //     fontWeight: FontWeight.w800,
-                      //     decoration: TextDecoration.underline,
-                      //   ),
-                      // ),
-                      // SingleChildScrollView(
-                      //   controller: _scrollController,
-                      //   scrollDirection: Axis.horizontal,
-                      //   child: Row(
-                      //     mainAxisAlignment: MainAxisAlignment.start,
-                      //     children: [
-                      //       HomeCardWidget(
-                      //         mainImage: 'assets/home/images/workout1.jpg',
-                      //         title: 'Quick Workout Tutorials',
-                      //         desc:
-                      //             'Need a quick workout? Try our Pre-mode workout plans.',
-                      //         onClick: () => _showQuickWorkoutOptions(context),
-                      //         buttonText: 'Start Workout',
-                      //         modelImage: 'assets/home/images/girl.png',
-                      //         height: 160.h,
-                      //         width: 160.w,
-                      //         left: 130.w,
-                      //         bottom: 40.h,
-                      //       ),
-                      //       HomeCardWidget(
-                      //         mainImage: 'assets/home/images/workout.jpg',
-                      //         title: 'Generate Workout Plans',
-                      //         desc:
-                      //             'Create a personalized workout plan tailored to your goals and experience level.',
-                      //         onClick: () {
-                      //           // TODO: Navigate to generate workout
-                      //         },
-                      //         buttonText: 'Start to Generate',
-                      //         modelImage: 'assets/home/images/workout2.png',
-                      //         height: 210.h,
-                      //         width: 90.w,
-                      //         left: 200.w,
-                      //         bottom: 20.h,
-                      //       ),
-                      //       HomeCardWidget(
-                      //         mainImage: 'assets/home/images/workout.jpg',
-                      //         title: 'Generate Diet Plans',
-                      //         desc:
-                      //             'Create a personalized nutrition plan tailored to your dietary needs and health goals.',
-                      //         onClick: () {
-                      //           // TODO: Navigate to generate diet plan
-                      //         },
-                      //         buttonText: 'Get Diet Plan',
-                      //         modelImage: 'assets/home/images/model.png',
-                      //         height: 140.h,
-                      //         width: 140.w,
-                      //         left: 150.w,
-                      //         bottom: 70.h,
-                      //       ),
-                      //       HomeCardWidget(
-                      //         mainImage: 'assets/home/images/workout1.jpg',
-                      //         title: 'Health CalCulators',
-                      //         desc:
-                      //             'Develop a personalized set of health calculators to track your fitness metrics.',
-                      //         onClick: () {
-                      //           // TODO: Navigate to health calculators
-                      //         },
-                      //         buttonText: 'Calculate health',
-                      //         modelImage: 'assets/home/images/workout3.png',
-                      //         height: 150.h,
-                      //         width: 150.w,
-                      //         left: 150.w,
-                      //         bottom: 50.h,
-                      //       ),
-                      //     ],
-                      //   ),
-                      // ),
                     ],
                   ),
                 ),
@@ -2657,9 +2793,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  /// Load goals from service and calculate if needed
+  /// Load goals from service and calculate if needed. Recalculates from profile when goals are defaults or inconsistent (e.g. muscle/strength but steps > 10k).
   Future<Map<String, double>> _loadGoals(HomeLoaded state) async {
-    // Get existing goals - use EnhancedGoalService to get today's goals
     final goalService = EnhancedGoalService(
       firestore: FirebaseFirestore.instance,
     );
@@ -2669,16 +2804,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     var caloriesGoal = currentGoals['calories'] as double;
     var moveMinGoal = (currentGoals['moveMin'] as int).toDouble();
 
-    // If calories goal is default (2000), try to calculate from user health data
-    if (caloriesGoal == 2000.0) {
-      try {
-        // Get user profile with dateOfBirth and gender
-        final profileRepo = getIt<UserProfileRepository>();
-        final userProfile = await profileRepo.getUserProfile(_userId);
+    // Recalculate from profile when: default calories, or profile is muscle gain/strength but steps > 10k
+    final profileRepo = getIt<UserProfileRepository>();
+    final userProfile = await profileRepo.getUserProfile(_userId);
+    final p = (userProfile?.purpose ?? '').toLowerCase();
+    final w = (userProfile?.workoutType ?? '').toLowerCase();
+    final isMuscleOrStrength = p.contains('muscle') || w.contains('strength');
+    final stepsWrongForProfile = isMuscleOrStrength && stepsGoal > 10000;
+    final shouldRecalcFromProfile = caloriesGoal == 2000.0 || stepsWrongForProfile;
 
-        if (userProfile != null &&
-            userProfile.dateOfBirth != null &&
-            userProfile.gender != null) {
+    if (shouldRecalcFromProfile &&
+        userProfile != null &&
+        userProfile.dateOfBirth != null &&
+        userProfile.gender != null) {
+      try {
           // Calculate age
           final now = DateTime.now();
           final dob = userProfile.dateOfBirth!;
@@ -2717,7 +2856,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 }
               }
             } catch (e) {
-              debugPrint('Error fetching weight/height from Google Fit: $e');
+              if (kDebugMode) debugPrint('Error fetching weight/height from Google Fit: $e');
             }
           }
 
@@ -2756,9 +2895,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
             if (calculatedCalories > 0) {
               caloriesGoal = calculatedCalories;
-              stepsGoal = GoalService.calculateStepsFromCalories(
-                caloriesGoal,
-              ).toDouble();
+              final stepsToSave = GoalService.getStepsGoalFromProfile(
+                calculatedCalories: calculatedCalories,
+                purpose: userProfile.purpose,
+                workoutType: userProfile.workoutType,
+              );
+              stepsGoal = stepsToSave.toDouble();
 
               // Save to SharedPreferences for quick access
               await GoalService.setCaloriesGoal(caloriesGoal);
@@ -2770,7 +2912,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               // This ensures goals are stored in Firestore for persistence
               try {
                 await goalService.saveDailyGoals(
-                  stepCountGoalValue: stepsGoal > 0 ? stepsGoal.toInt() : 10000,
+                  stepCountGoalValue: stepsToSave,
                   caloriesBurnGoalValue: calculatedCalories,
                   moveMinGoalValue: moveMinGoal.toInt(),
                   isPaused: false,
@@ -2788,14 +2930,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     purpose: userProfile.purpose,
                   );
                 } catch (e) {
-                  debugPrint(
+                  if (kDebugMode) debugPrint(
                     'Error calculating and saving macros in _loadGoals: $e',
                   );
                 }
 
-                debugPrint('_loadGoals: Calculated goals saved to backend');
+                if (kDebugMode) debugPrint('_loadGoals: Calculated goals saved to backend');
               } catch (e) {
-                debugPrint(
+                if (kDebugMode) debugPrint(
                   'Error saving calculated goals to backend in _loadGoals: $e',
                 );
               }
@@ -2811,18 +2953,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   purpose: userProfile.purpose,
                 );
               } catch (e) {
-                debugPrint('Error calculating and saving macros: $e');
+                if (kDebugMode) debugPrint('Error calculating and saving macros: $e');
               }
             }
           } else {
-            debugPrint(
+            if (kDebugMode) debugPrint(
               'Cannot calculate calories goal: Missing weight or height from database',
             );
           }
-        }
       } catch (e) {
         // If calculation fails, use default
-        debugPrint('Error calculating calories goal: $e');
+        if (kDebugMode) debugPrint('Error calculating calories goal: $e');
       }
     }
 
@@ -2868,11 +3009,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return date.subtract(Duration(days: daysFromMonday));
   }
 
-  /// Get weight chart data
+  /// Get weight chart data (15 days, X-axis shows 6 dates in dd/MM format)
   ChartSeries _getWeightChartData(HomeLoaded state) {
-    final weeklyData = state.weeklyFitnessData;
+    final weightData = state.weightChartFitnessData;
 
-    if (weeklyData.isEmpty) {
+    if (weightData.isEmpty) {
       return ChartSeries(
         name: 'Weight (kg)',
         dataPoints: [],
@@ -2882,18 +3023,122 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     return ChartSeries(
       name: 'Weight (kg)',
-      dataPoints: weeklyData.asMap().entries.map((entry) {
+      dataPoints: weightData.asMap().entries.map((entry) {
         final index = entry.key;
         final data = entry.value;
         final date =
-            data.date ?? DateTime.now().subtract(Duration(days: 6 - index));
+            data.date ?? DateTime.now().subtract(Duration(days: 14 - index));
         return ChartDataPoint(
           value: data.weight ?? 0.0,
-          label: _getDayLabel(date),
+          label: _formatWeightChartDateLabel(date),
         );
       }).toList(),
       color: const Color(0xFF00D4AA),
     );
+  }
+
+  /// Format date for weight chart X-axis: dd/MM (e.g. 30/11, 15/12)
+  String _formatWeightChartDateLabel(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+  }
+
+  /// Show dialog to add or update weight; on save writes to Google Fit and profile, then refreshes chart.
+  Future<void> _showUpdateWeightDialog(BuildContext context, HomeLoaded state) async {
+    final profileRepo = getIt<UserProfileRepository>();
+    final googleFitRepo = getIt<GoogleFitRepository>();
+    final saveProfileUseCase = getIt<SaveUserProfileUseCase>();
+
+    profile_model.UserProfile? profile;
+    try {
+      profile = await profileRepo.getUserProfile(_userId);
+    } catch (e) {
+      if (this.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load profile: $e'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    final controller = TextEditingController(
+      text: profile?.weight != null ? profile!.weight!.toStringAsFixed(1) : '',
+    );
+
+    if (!this.mounted) return;
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black,
+        title: Text(
+          'Update Weight',
+          style: GoogleFonts.ubuntu(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: GoogleFonts.ubuntu(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: 'Weight (kg)',
+            labelStyle: GoogleFonts.ubuntu(color: Colors.white70),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: GoogleFonts.ubuntu(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text.trim());
+              if (value == null || value <= 0 || value > 300) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter a valid weight (1–300 kg)'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              Navigator.of(ctx).pop(value);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.black),
+            child: Text('Save', style: GoogleFonts.ubuntu(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || !this.mounted) return;
+
+    try {
+      final now = DateTime.now();
+      await googleFitRepo.writeWeight(result, now);
+      if (profile == null) return;
+      final updatedProfile = profile.copyWith(weight: result);
+      await saveProfileUseCase(updatedProfile);
+      if (this.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Weight updated: ${result.toStringAsFixed(1)} kg'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        context.read<HomeBloc>().add(const FetchWeightChartDataEvent());
+        context.read<HomeBloc>().add(RefreshHomeDataEvent(_userId));
+      }
+    } catch (e) {
+      if (this.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save weight: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   /// Get calories chart data
@@ -2924,31 +3169,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  /// Get heart rate chart data
-  ChartSeries _getHeartRateChartData(HomeLoaded state) {
+  /// Get steps chart data (7 days, bar chart)
+  ChartSeries _getStepsChartData(HomeLoaded state) {
     final weeklyData = state.weeklyFitnessData;
 
     if (weeklyData.isEmpty) {
       return ChartSeries(
-        name: 'Heart Rate (bpm)',
+        name: 'Steps',
         dataPoints: [],
-        color: const Color(0xFFFF006E),
+        color: const Color(0xFF4CAF50),
       );
     }
 
     return ChartSeries(
-      name: 'Heart Rate (bpm)',
+      name: 'Steps',
       dataPoints: weeklyData.asMap().entries.map((entry) {
         final index = entry.key;
         final data = entry.value;
         final date =
             data.date ?? DateTime.now().subtract(Duration(days: 6 - index));
         return ChartDataPoint(
-          value: data.heartRate ?? 0.0,
+          value: (data.steps ?? 0).toDouble(),
           label: _getDayLabel(date),
         );
       }).toList(),
-      color: const Color(0xFFFF006E),
+      color: const Color(0xFF4CAF50),
     );
   }
 
@@ -2961,7 +3206,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _loadMacrosData() async {
     try {
       if (_userId.isEmpty) {
-        debugPrint('MacrosRadarChart: userId is empty, cannot load macros');
+        if (kDebugMode) debugPrint('MacrosRadarChart: userId is empty, cannot load macros');
         return;
       }
 
@@ -2983,11 +3228,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             macros['protein'] ?? data['profile.macros.protein'];
         final fatValue = macros['fat'] ?? data['profile.macros.fat'];
 
-        debugPrint(
+        if (kDebugMode) debugPrint(
           'MacrosRadarChart: Loaded macros - Carbs: $carbsValue, Protein: $proteinValue, Fat: $fatValue',
         );
 
-        if (mounted) {
+        if (this.mounted) {
           setState(() {
             _carbsGoal = carbsValue != null
                 ? (carbsValue as num).toDouble()
@@ -2999,10 +3244,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           });
         }
       } else {
-        debugPrint('MacrosRadarChart: User document does not exist');
+        if (kDebugMode) debugPrint('MacrosRadarChart: User document does not exist');
       }
     } catch (e) {
-      debugPrint('Error loading macros data: $e');
+      if (kDebugMode) debugPrint('Error loading macros data: $e');
     }
   }
 
@@ -3011,7 +3256,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     try {
       if (_userId.isEmpty) {
         // Reset to 0 if user not logged in
-        if (mounted) {
+        if (this.mounted) {
           setState(() {
             _caloriesConsumed = 0.0;
             _carbsConsumed = 0.0;
@@ -3022,7 +3267,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         return;
       }
 
-      final dateString = _getTodayDateString();
+      final dateString = _todayDateString();
       double totalCalories = 0.0;
       double totalCarbs = 0.0;
       double totalProtein = 0.0;
@@ -3053,7 +3298,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
         if (planDoc.exists) {
           final planData = planDoc.data()!;
-          final meals = planData['meals'] as List<dynamic>? ?? [];
+          final meals = _mealsAsList(planData['meals']);
 
           // Check each meal in the plan
           for (var meal in meals) {
@@ -3111,22 +3356,22 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       // Regular daily food entries are not included in consumed macros
       // They should be tracked separately if needed
 
-      if (mounted) {
+      if (this.mounted) {
         setState(() {
           _caloriesConsumed = totalCalories;
           _carbsConsumed = totalCarbs;
           _proteinConsumed = totalProtein;
           _fatConsumed = totalFat;
         });
-        debugPrint(
+        if (kDebugMode) debugPrint(
           'Loaded consumed macros - Calories: $totalCalories, Carbs: $totalCarbs, Protein: $totalProtein, Fat: $totalFat',
         );
-        debugPrint('Active plan ID from dailyGoal: $activePlanId');
+        if (kDebugMode) debugPrint('Active plan ID from dailyGoal: $activePlanId');
       }
     } catch (e) {
-      debugPrint('Error loading consumed macros: $e');
+      if (kDebugMode) debugPrint('Error loading consumed macros: $e');
       // Reset to 0 on error
-      if (mounted) {
+      if (this.mounted) {
         setState(() {
           _caloriesConsumed = 0.0;
           _carbsConsumed = 0.0;
@@ -3146,10 +3391,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   double _getProteinPercentage() {
-    if (_proteinGoal == null || _proteinGoal == 0) {
+    if (this._proteinGoal == null || this._proteinGoal == 0) {
       return 0.0;
     }
-    return (_proteinConsumed / _proteinGoal! * 100).clamp(0.0, 100.0);
+    return (_proteinConsumed / this._proteinGoal! * 100).clamp(0.0, 100.0);
   }
 
   double _getFatPercentage() {
@@ -3175,7 +3420,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         moveMin: moveMin,
       );
     } catch (e) {
-      debugPrint('Error updating goal completion: $e');
+      if (kDebugMode) debugPrint('Error updating goal completion: $e');
     }
   }
 
@@ -3216,7 +3461,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             .doc(activePlanId)
             .get();
 
-        if (mounted) {
+        if (this.mounted) {
           setState(() {
             if (planDoc.exists) {
               final data = planDoc.data();
@@ -3224,11 +3469,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               
               // Verify the plan status matches (should be active)
               // Also verify it's still the active plan in dailyGoal
-              debugPrint('_loadActiveDietPlan: Plan found, status: $planStatus, activePlanId: $activePlanId');
+              if (kDebugMode) debugPrint('_loadActiveDietPlan: Plan found, status: $planStatus, activePlanId: $activePlanId');
               if (planStatus == 'active') {
                 _activeDietPlan = {'id': planDoc.id, ...data!};
                 _activeDietPlanId = activePlanId; // Store the active plan ID
-                debugPrint('_loadActiveDietPlan: Active plan loaded successfully: ${data?['name']}');
+                if (kDebugMode) debugPrint('_loadActiveDietPlan: Active plan loaded successfully: ${data?['name']}');
               } else {
                 // Plan exists but status is not active - clear it
                 _activeDietPlan = null;
@@ -3248,7 +3493,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         }
       } else {
         // No active plan for today - clear everything
-        if (mounted) {
+        if (this.mounted) {
           setState(() {
             _activeDietPlan = null;
             _activeDietPlanId = null; // Clear the active plan ID
@@ -3257,13 +3502,52 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      debugPrint('Error loading active diet plan: $e');
-      if (mounted) {
+      if (kDebugMode) debugPrint('Error loading active diet plan: $e');
+      if (this.mounted) {
         setState(() {
           _isLoadingActivePlan = false;
         });
       }
     }
+  }
+
+  /// Cancel all meal reminders if no diet plan is active for today (e.g. app start or plan deactivated).
+  Future<void> _cancelMealAlarmsIfNoActivePlan() async {
+    try {
+      if (_userId.isEmpty) return;
+      final now = DateTime.now();
+      final dateString = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_userId)
+          .collection('dailyGoals')
+          .doc(dateString)
+          .get();
+      final activePlanId = snap.data()?['dietPlanId'] as String?;
+      if (activePlanId == null || activePlanId.isEmpty) {
+        await getIt<MealAlarmService>().cancelAllAlarms();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('_cancelMealAlarmsIfNoActivePlan: $e');
+    }
+  }
+
+  /// Safely get meals as a list (Firestore may return List or Map).
+  static List<dynamic> _mealsAsList(dynamic value) {
+    if (value == null) return [];
+    if (value is List<dynamic>) return value;
+    if (value is Map) {
+      final map = value as Map;
+      final keys = map.keys.whereType<String>().toList()
+        ..sort((a, b) {
+          final na = int.tryParse(a);
+          final nb = int.tryParse(b);
+          if (na != null && nb != null) return na.compareTo(nb);
+          return a.compareTo(b);
+        });
+      return keys.map((k) => map[k]).whereType<dynamic>().toList();
+    }
+    return [];
   }
 
   /// Calculate total calories from meals
@@ -3302,7 +3586,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error clearing active plan from dailyGoal: $e');
+      if (kDebugMode) debugPrint('Error clearing active plan from dailyGoal: $e');
     }
   }
 
@@ -3323,7 +3607,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
 
     final planName = _activeDietPlan!['name'] as String? ?? 'Untitled Plan';
-    final meals = _activeDietPlan!['meals'] as List<dynamic>? ?? [];
+    final meals = _mealsAsList(_activeDietPlan!['meals']);
     final totalCalories = _calculateTotalCaloriesFromMeals(meals);
     final totalMeals = meals.length;
     final consumedMeals = _calculateConsumedMealsCount(meals);
@@ -3356,7 +3640,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               extra: {'planId': planId, 'planData': _activeDietPlan!},
             );
             // Refresh active plan when returning
-            if (result == true && mounted) {
+            if (result == true && this.mounted) {
               _loadActiveDietPlan();
               _loadMacrosForBottomSheet(); // Refresh consumed macros
             }

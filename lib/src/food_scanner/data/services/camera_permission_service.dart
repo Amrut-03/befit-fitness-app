@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -23,7 +24,7 @@ class CameraPermissionService {
         return CameraPermissionStatus.denied;
       }
     } catch (e) {
-      debugPrint('CameraPermissionService: Error checking permission: $e');
+      if (kDebugMode) debugPrint('CameraPermissionService: Error checking permission: $e');
       return CameraPermissionStatus.unknown;
     }
   }
@@ -41,7 +42,7 @@ class CameraPermissionService {
         return CameraPermissionStatus.denied;
       }
     } catch (e) {
-      debugPrint('CameraPermissionService: Error requesting permission: $e');
+      if (kDebugMode) debugPrint('CameraPermissionService: Error requesting permission: $e');
       return CameraPermissionStatus.unknown;
     }
   }

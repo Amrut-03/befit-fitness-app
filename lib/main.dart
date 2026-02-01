@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/providers/language_provider.dart';
+import 'src/home/data/services/meal_alarm_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -18,54 +19,30 @@ void main() async {
   // Load environment variables from .env file
   try {
     await dotenv.load(fileName: ".env");
-  } catch (e) {
-    // In production, .env might not exist, continue with defaults
-    debugPrint('Warning: Could not load .env file: $e');
-  }
-  
-  // Initialize Firebase
+  } catch (_) {}
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // Initialize Firebase Crashlytics & Analytics
   await _initializeFirebaseServices();
-  
-  // Initialize SharedPreferences (needed for onboarding state)
   await SharedPreferences.getInstance();
-  
-  // Initialize dependency injection
   await initDependencyInjection();
-  
+  await getIt<MealAlarmService>().init();
+
   runApp(const MyApp());
 }
 
-/// Initialize Firebase services (Crashlytics, Analytics, Performance)
 Future<void> _initializeFirebaseServices() async {
   try {
-    // Only initialize if feature flags are enabled
-    if (AppConfig.enableCrashReporting) {
-      // Note: firebase_crashlytics package needs to be added to pubspec.yaml
-      // FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-      // PlatformDispatcher.instance.onError = (error, stack) {
-      //   FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      //   return true;
-      // };
-    }
-    
-    if (AppConfig.enableAnalytics) {
-      // Firebase Analytics is automatically initialized with Firebase.initializeApp()
-      // You can access it via FirebaseAnalytics.instance when needed
-    }
-  } catch (e) {
-    debugPrint('Error initializing Firebase services: $e');
-  }
+    if (AppConfig.enableCrashReporting) {}
+    if (AppConfig.enableAnalytics) {}
+  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -80,7 +57,6 @@ class MyApp extends StatelessWidget {
               return MaterialApp.router(
                 title: 'BeFit Fitness App',
                 debugShowCheckedModeBanner: false,
-                // Localization configuration
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
@@ -88,8 +64,8 @@ class MyApp extends StatelessWidget {
                   GlobalCupertinoLocalizations.delegate,
                 ],
                 supportedLocales: const [
-                  Locale('en', ''), // English
-                  Locale('es', ''), // Spanish
+                  Locale('en', ''),
+                  Locale('es', ''),
                 ],
                 locale: languageProvider.locale,
                 theme: ThemeData(

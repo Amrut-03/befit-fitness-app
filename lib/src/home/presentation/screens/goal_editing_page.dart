@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/home/data/services/enhanced_goal_service.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';
@@ -135,7 +136,7 @@ class _GoalEditingPageState extends State<GoalEditingPage> {
               );
             }
           } catch (e) {
-            debugPrint('Error fetching from Google Fit: $e');
+            if (kDebugMode) debugPrint('Error fetching from Google Fit: $e');
           }
         }
       }
@@ -151,7 +152,7 @@ class _GoalEditingPageState extends State<GoalEditingPage> {
         currentCalories = currentGoals['calories'] as double;
         currentMoveMin = currentGoals['moveMin'] as int;
       } catch (e) {
-        debugPrint('Error getting current goals: $e');
+        if (kDebugMode) debugPrint('Error getting current goals: $e');
       }
       
       final suggestions = await _goalService.getSmartGoalSuggestions(
@@ -163,6 +164,8 @@ class _GoalEditingPageState extends State<GoalEditingPage> {
         age: age,
         gender: gender,
         activityLevel: activityLevel,
+        purpose: userProfile?.purpose,
+        workoutType: userProfile?.workoutType,
       );
       if (mounted) {
         setState(() {
@@ -171,7 +174,7 @@ class _GoalEditingPageState extends State<GoalEditingPage> {
       }
     } catch (e) {
       // Silently fail - smart suggestions are optional
-      debugPrint('Failed to load smart suggestions: $e');
+      if (kDebugMode) debugPrint('Failed to load smart suggestions: $e');
     }
   }
 
@@ -352,11 +355,22 @@ class _GoalEditingPageState extends State<GoalEditingPage> {
     if (!_isInitialized) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(
+            'Edit Daily Goals',
+            style: GoogleFonts.ubuntu(
+              color: Colors.white,
+              fontSize: 20.sp,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
+        body: const ShimmerGoalEditing(),
       );
     }
 

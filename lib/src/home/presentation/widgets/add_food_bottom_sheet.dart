@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
 import 'package:befit_fitness_app/src/food_scanner/data/services/food_storage_service.dart';
 import 'package:befit_fitness_app/src/food_scanner/presentation/screens/barcode_scanner_screen.dart';
@@ -294,9 +295,20 @@ class _AddFoodBottomSheetContentState extends State<_AddFoodBottomSheetContent> 
           // Food items list
           Expanded(
             child: _isLoading
-                ? Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
+                ? ListView.builder(
+                    padding: EdgeInsets.all(16.w),
+                    itemCount: 6,
+                    itemBuilder: (_, __) => Padding(
+                      padding: EdgeInsets.only(bottom: 12.h),
+                      child: ShimmerLoading(
+                        child: Container(
+                          height: 64.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                      ),
                     ),
                   )
                 : _filteredFoodItems.isEmpty

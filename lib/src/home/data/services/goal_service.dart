@@ -12,10 +12,10 @@ class GoalService {
     return prefs.getInt(_stepsGoalKey) ?? 10000;
   }
 
-  /// Set daily steps goal
+  /// Set daily steps goal (capped at [maxStepsGoal])
   static Future<void> setStepsGoal(int goal) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_stepsGoalKey, goal);
+    await prefs.setInt(_stepsGoalKey, goal.clamp(1000, maxStepsGoal));
   }
 
   /// Get daily calories goal (default: 2000)
@@ -74,13 +74,28 @@ class GoalService {
     return bmr * multiplier;
   }
 
-  /// Calculate steps needed from calories goal
+  /// Max realistic daily steps (cap to avoid overflow/56k display)
+  static const int maxStepsGoal = 25000;
+
+  /// Calculate steps needed from calories goal, capped at [maxStepsGoal].
   /// Average: 1 step ≈ 0.04-0.05 calories (varies by person)
   /// Using 0.045 as average
   static int calculateStepsFromCalories(double caloriesGoal) {
-    // Average calories per step
     const caloriesPerStep = 0.045;
-    return (caloriesGoal / caloriesPerStep).round();
+    final steps = (caloriesGoal / caloriesPerStep).round();
+    return steps.clamp(1000, maxStepsGoal);
+  }
+
+  /// Steps goal from profile: use 10k for muscle gain / strength training (realistic), else from calories.
+  static int getStepsGoalFromProfile({
+    required double calculatedCalories,
+    String? purpose,
+    String? workoutType,
+  }) {
+    final p = (purpose ?? '').toLowerCase();
+    final w = (workoutType ?? '').toLowerCase();
+    if (p.contains('muscle') || w.contains('strength')) return 10000;
+    return calculateStepsFromCalories(calculatedCalories);
   }
 }
 

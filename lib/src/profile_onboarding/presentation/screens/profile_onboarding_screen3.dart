@@ -1,6 +1,7 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
-import 'package:befit_fitness_app/core/widgets/widgets.dart';
+import 'package:befit_fitness_app/core/widgets/elevated_icon_button.dart';
+import 'package:befit_fitness_app/core/widgets/text_rich.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/models/user_profile.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/domain/usecase/save_user_profile_usecase.dart';
 import 'package:befit_fitness_app/src/profile_onboarding/data/repositories/user_profile_repository_impl.dart';

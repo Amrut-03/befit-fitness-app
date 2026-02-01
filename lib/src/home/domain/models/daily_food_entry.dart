@@ -10,6 +10,7 @@ class DailyFoodEntry {
   final String mealTime; // e.g., "08:00", "12:30", "18:00"
   final String mealName; // e.g., "Breakfast", "Lunch", "Dinner", "Snack"
   final int order; // Order for drag and drop
+  final String? alarmTime; // Optional reminder time e.g. "08:00"
 
   DailyFoodEntry({
     required this.id,
@@ -19,6 +20,7 @@ class DailyFoodEntry {
     this.mealTime = '12:00',
     this.mealName = 'Meal',
     this.order = 0,
+    this.alarmTime,
   });
 
   /// Get the serving unit from product, defaulting to grams
@@ -95,9 +97,9 @@ class DailyFoodEntry {
       },
       'quantity': quantity,
       'addedAt': addedAt.toIso8601String(),
-      'mealTime': mealTime,
       'mealName': mealName,
       'order': order,
+      if (alarmTime != null) 'alarmTime': alarmTime,
     };
   }
 
@@ -127,14 +129,16 @@ class DailyFoodEntry {
       ),
     );
 
+    final alarmFromData = data['alarmTime'] as String? ?? data['mealTime'] as String?;
     return DailyFoodEntry(
       id: id,
       product: product,
       quantity: (data['quantity'] as num?)?.toDouble() ?? 1.0,
       addedAt: DateTime.parse(data['addedAt'] ?? DateTime.now().toIso8601String()),
-      mealTime: data['mealTime'] as String? ?? '12:00',
+      mealTime: alarmFromData ?? '12:00',
       mealName: data['mealName'] as String? ?? 'Meal',
       order: (data['order'] as int?) ?? 0,
+      alarmTime: alarmFromData,
     );
   }
 
@@ -146,6 +150,8 @@ class DailyFoodEntry {
     String? mealTime,
     String? mealName,
     int? order,
+    String? alarmTime,
+    bool clearAlarm = false,
   }) {
     return DailyFoodEntry(
       id: id ?? this.id,
@@ -155,6 +161,7 @@ class DailyFoodEntry {
       mealTime: mealTime ?? this.mealTime,
       mealName: mealName ?? this.mealName,
       order: order ?? this.order,
+      alarmTime: clearAlarm ? null : (alarmTime ?? this.alarmTime),
     );
   }
 }

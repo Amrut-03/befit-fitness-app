@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_bloc.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_event.dart';
 import 'package:befit_fitness_app/src/home/presentation/bloc/home_state.dart';
@@ -18,9 +19,16 @@ class BodyChartWidget extends StatelessWidget {
     return BlocBuilder<HomeBloc, HomeState>(
       builder: (context, state) {
         if (state is HomeLoading || state is HomeInitial) {
-          return Center(
-            child: CircularProgressIndicator(
-              color: AppColors.primary,
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+            child: ShimmerLoading(
+              child: Container(
+                height: 200.h,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+              ),
             ),
           );
         }

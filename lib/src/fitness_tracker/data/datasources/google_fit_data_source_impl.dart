@@ -33,7 +33,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final auth = await account.authentication;
       return auth.accessToken != null;
     } catch (e) {
-      debugPrint('GoogleFitDataSourceImpl: Error checking availability: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSourceImpl: Error checking availability: $e');
       return false;
     }
   }
@@ -47,7 +47,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final auth = await account.authentication;
       return auth.accessToken != null;
     } catch (e) {
-      debugPrint('GoogleFitDataSource: Error requesting permissions: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error requesting permissions: $e');
       return false;
     }
   }
@@ -61,7 +61,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       final auth = await account.authentication;
       return auth.accessToken != null;
     } catch (e) {
-      debugPrint('GoogleFitDataSource: Error checking permissions: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error checking permissions: $e');
       return false;
     }
   }
@@ -90,7 +90,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       }
       return total;
     } catch (e) {
-      debugPrint('Error extracting int value: $e');
+      if (kDebugMode) debugPrint('Error extracting int value: $e');
       return 0;
     }
   }
@@ -121,7 +121,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       }
       return total;
     } catch (e) {
-      debugPrint('Error extracting float value: $e');
+      if (kDebugMode) debugPrint('Error extracting float value: $e');
       return 0.0;
     }
   }
@@ -148,7 +148,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return totalSteps;
     } catch (e) {
-      debugPrint('GoogleFitDataSource: Error fetching steps: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error fetching steps: $e');
       return null;
     }
   }
@@ -172,7 +172,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return totalSteps;
     } catch (e) {
-      debugPrint('Error fetching steps in range: $e');
+      if (kDebugMode) debugPrint('Error fetching steps in range: $e');
       return 0;
     }
   }
@@ -199,7 +199,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return totalDistance;
     } catch (e) {
-      debugPrint('GoogleFitDataSource: Error fetching distance: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error fetching distance: $e');
       return null;
     }
   }
@@ -223,7 +223,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return totalDistance; // in meters
     } catch (e) {
-      debugPrint('Error fetching distance in range: $e');
+      if (kDebugMode) debugPrint('Error fetching distance in range: $e');
       return 0.0;
     }
   }
@@ -250,7 +250,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return totalCalories;
     } catch (e) {
-      debugPrint('GoogleFitDataSource: Error fetching calories: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error fetching calories: $e');
       return null;
     }
   }
@@ -274,7 +274,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return totalCalories; // in kcal
     } catch (e) {
-      debugPrint('Error fetching calories in range: $e');
+      if (kDebugMode) debugPrint('Error fetching calories in range: $e');
       return 0.0;
     }
   }
@@ -337,7 +337,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return latestHeartRate;
     } catch (e) {
-      debugPrint('GoogleFitDataSource: Error fetching heart rate: $e');
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error fetching heart rate: $e');
       return null;
     }
   }
@@ -399,7 +399,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return latestWeight;
     } catch (e) {
-      debugPrint('Error fetching weight: $e');
+      if (kDebugMode) debugPrint('Error fetching weight: $e');
       return null;
     }
   }
@@ -461,7 +461,69 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
 
       return latestHeight;
     } catch (e) {
-      debugPrint('Error fetching height: $e');
+      if (kDebugMode) debugPrint('Error fetching height: $e');
+      return null;
+    }
+  }
+
+  /// Get weight (kg) for a specific date from Google Fit, or null if none.
+  Future<double?> _getWeightForDate(DateTime date) async {
+    try {
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final dataSources = await _restClient.getDataSources(dataTypeName: _dataTypeWeight);
+      if (dataSources.isEmpty) return null;
+
+      double? weightForDay;
+      DateTime? latestTime;
+
+      for (var ds in dataSources) {
+        try {
+          final dataSourceId = ds['dataStreamId'] ?? ds['dataSourceId'];
+          if (dataSourceId == null) continue;
+
+          final dataset = await _restClient.getDataset(
+            dataSourceId: dataSourceId as String,
+            startTime: startOfDay,
+            endTime: endOfDay,
+          );
+
+          final point = dataset['point'] as List<dynamic>?;
+          if (point == null || point.isEmpty) continue;
+
+          for (var p in point) {
+            final startTimeNanos = p['startTimeNanos'] as String?;
+            final value = p['value'] as List<dynamic>?;
+            if (value == null || value.isEmpty) continue;
+
+            for (var v in value) {
+              double? w;
+              if (v['fpVal'] != null) {
+                w = (v['fpVal'] as num).toDouble();
+              } else if (v['intVal'] != null) {
+                w = (v['intVal'] as num).toDouble();
+              }
+
+              if (w != null && startTimeNanos != null) {
+                final time = DateTime.fromMillisecondsSinceEpoch(
+                  int.parse(startTimeNanos) ~/ 1000000,
+                );
+                if (latestTime == null || time.isAfter(latestTime)) {
+                  latestTime = time;
+                  weightForDay = w;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return weightForDay;
+    } catch (e) {
+      if (kDebugMode) debugPrint('GoogleFitDataSource: Error fetching weight for date: $e');
       return null;
     }
   }
@@ -471,7 +533,25 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
     final steps = await getSteps(date);
     final distance = await getDistance(date);
     final calories = await getCalories(date);
-    final heartRate = await getHeartRate(date);
+    double? heartRate = await getHeartRate(date);
+    if (heartRate == null) {
+      try {
+        final startOfDay = DateTime(date.year, date.month, date.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
+        final agg = await getAggregatedData(startOfDay, endOfDay);
+        heartRate = agg.averageHeartRate;
+      } catch (_) {
+        // Keep heartRate null
+      }
+    }
+    double? weight = await _getWeightForDate(date);
+    // Fallback: use latest weight from Google Fit for today if no reading for this day
+    if (weight == null) {
+      final now = DateTime.now();
+      if (date.year == now.year && date.month == now.month && date.day == now.day) {
+        weight = await getWeight();
+      }
+    }
 
     int? moveMinutes;
     try {
@@ -522,6 +602,7 @@ class GoogleFitDataSourceImpl implements GoogleFitDataSource {
       calories: calories,
       heartRate: heartRate,
       moveMin: moveMinutes,
+      weight: weight,
       date: date,
     );
   }

@@ -50,6 +50,8 @@ import 'package:befit_fitness_app/src/my_food_items/domain/repositories/food_ite
 import 'package:befit_fitness_app/src/my_food_items/domain/usecases/get_food_items_usecase.dart';
 import 'package:befit_fitness_app/src/my_food_items/domain/usecases/delete_food_item_usecase.dart';
 import 'package:befit_fitness_app/src/my_food_items/presentation/bloc/my_food_items_bloc.dart';
+import 'package:befit_fitness_app/src/home/data/services/meal_alarm_service.dart';
+import 'package:befit_fitness_app/src/home/data/services/delete_account_service.dart';
 
 /// GetIt instance for dependency injection
 final getIt = GetIt.instance;
@@ -292,6 +294,14 @@ Future<void> initDependencyInjection() async {
       getFitnessDataWithPermissionsUseCase: getIt<GetFitnessDataWithPermissionsUseCase>(),
       permissionService: getIt<PermissionService>(),
     ),
+  );
+
+  // Meal alarm service for meal reminder notifications
+  getIt.registerLazySingleton<MealAlarmService>(() => MealAlarmService());
+
+  // Delete account service – deletes all user data from Firestore
+  getIt.registerLazySingleton<DeleteAccountService>(
+    () => DeleteAccountService(firestore: getIt<FirebaseFirestore>()),
   );
 
   // Wait for all async registrations to complete

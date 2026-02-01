@@ -1,10 +1,13 @@
+import 'package:befit_fitness_app/src/workout/presentation/bloc/workout_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/workout/domain/models/exercise.dart';
 import 'package:befit_fitness_app/src/workout/presentation/bloc/workout_bloc.dart';
+import 'package:befit_fitness_app/src/workout/presentation/bloc/workout_state.dart';
 import 'package:befit_fitness_app/src/workout/presentation/widgets/exercise_card.dart';
 import 'package:befit_fitness_app/src/workout/presentation/widgets/exercise_detail_bottom_sheet.dart';
 
@@ -82,40 +85,52 @@ class _WorkoutListScreenState extends State<WorkoutListScreen> {
           _requestInitialExercisesIfNeeded(state);
         },
         builder: (context, state) {
-          if (state is WorkoutLoading && state is! WorkoutLoaded) {
+          if (state is WorkoutLoading) {
             return _buildScaffold(
-              body: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
+              body: const ShimmerWorkoutList(itemCount: 10),
             );
           }
 
           if (state is WorkoutError) {
             return _buildScaffold(
               body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red, size: 48.sp),
-                    SizedBox(height: 16.h),
-                    Text(
-                      state.message,
-                      style: GoogleFonts.ubuntu(
-                        color: Colors.white,
-                        fontSize: 14.sp,
+                child: Padding(
+                  padding: EdgeInsets.all(24.w),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red, size: 48.sp),
+                      SizedBox(height: 16.h),
+                      Text(
+                        state.message,
+                        style: GoogleFonts.ubuntu(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 16.h),
-                    ElevatedButton(
-                      onPressed: () => _bloc.add(const LoadExerciseFiltersEvent()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.black,
+                      SizedBox(height: 24.h),
+                      ElevatedButton(
+                        onPressed: () => _bloc.add(const LoadExerciseFiltersEvent()),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black,
+                        ),
+                        child: const Text('Retry'),
                       ),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                      SizedBox(height: 12.h),
+                      TextButton(
+                        onPressed: () => _bloc.add(const LoadExercisesEvent(reset: true)),
+                        child: Text(
+                          'Load exercises anyway',
+                          style: GoogleFonts.ubuntu(
+                            color: AppColors.primary,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -125,9 +140,7 @@ class _WorkoutListScreenState extends State<WorkoutListScreen> {
             return _buildScaffold(
               state: state,
               body: state.isLoading && state.exercises.isEmpty
-                  ? Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    )
+                  ? const ShimmerWorkoutList(itemCount: 10)
                   : state.filteredExercises.isEmpty
                       ? Center(
                           child: Column(
@@ -169,10 +182,14 @@ class _WorkoutListScreenState extends State<WorkoutListScreen> {
                             itemBuilder: (context, index) {
                               if (index == state.filteredExercises.length) {
                                 return Padding(
-                                  padding: EdgeInsets.all(20.h),
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      color: AppColors.primary,
+                                  padding: EdgeInsets.all(16.w),
+                                  child: ShimmerLoading(
+                                    child: Container(
+                                      height: 80.h,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.06),
+                                        borderRadius: BorderRadius.circular(12.r),
+                                      ),
                                     ),
                                   ),
                                 );

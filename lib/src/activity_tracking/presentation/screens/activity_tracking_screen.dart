@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -62,7 +64,7 @@ class _ActivityTrackingScreenState extends State<ActivityTrackingScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading custom marker: $e');
+      if (kDebugMode) debugPrint('Error loading custom marker: $e');
     }
   }
 
@@ -95,7 +97,7 @@ class _ActivityTrackingScreenState extends State<ActivityTrackingScreen> {
         );
       } catch (e) {
         // Ignore errors if controller is disposed
-        debugPrint('Error updating map camera: $e');
+        if (kDebugMode) debugPrint('Error updating map camera: $e');
       }
     }
   }
@@ -159,7 +161,7 @@ class _ActivityTrackingScreenState extends State<ActivityTrackingScreen> {
             );
           } catch (e) {
             // Ignore errors if controller is disposed
-            debugPrint('Error animating camera: $e');
+            if (kDebugMode) debugPrint('Error animating camera: $e');
           }
         }
       },
@@ -298,7 +300,7 @@ class _ActivityTrackingScreenState extends State<ActivityTrackingScreen> {
       try {
         _mapController!.dispose();
       } catch (e) {
-        debugPrint('Error disposing map controller: $e');
+        if (kDebugMode) debugPrint('Error disposing map controller: $e');
       }
       _mapController = null;
     }
@@ -339,8 +341,14 @@ class _ActivityTrackingScreenState extends State<ActivityTrackingScreen> {
                 mapToolbarEnabled: false,
               )
             else
-              const Center(
-                child: CircularProgressIndicator(),
+              ShimmerLoading(
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                  ),
+                ),
               ),
 
             // Top bar with activity info - Modern glassmorphism design

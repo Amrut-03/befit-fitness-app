@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/utils/app_snackbar.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
 import 'package:befit_fitness_app/src/food_scanner/data/services/food_storage_service.dart';
 import 'package:befit_fitness_app/src/food_scanner/data/services/smart_suggestion_service.dart';
@@ -65,7 +66,7 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error checking if saved: $e');
+      if (kDebugMode) debugPrint('Error checking if saved: $e');
     }
   }
 
@@ -79,7 +80,7 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+      if (kDebugMode) debugPrint('Error loading suggestions: $e');
       if (mounted) {
         setState(() {
           _isLoadingSuggestions = false;
@@ -107,9 +108,9 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
     });
 
     try {
-      debugPrint('FoodProductDetailsScreen: Attempting to save product: ${widget.product.name}');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Attempting to save product: ${widget.product.name}');
       final success = await _storageService.saveScannedFoodItem(widget.product);
-      debugPrint('FoodProductDetailsScreen: Save result: $success');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Save result: $success');
       
       if (mounted) {
         if (success) {
@@ -128,8 +129,8 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
         }
       }
     } catch (e, stackTrace) {
-      debugPrint('FoodProductDetailsScreen: Error saving product: $e');
-      debugPrint('FoodProductDetailsScreen: Stack trace: $stackTrace');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Error saving product: $e');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
           _isSaving = false;
@@ -165,7 +166,7 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
         await context.push(DietPlanningScreen.route);
       }
     } catch (e) {
-      debugPrint('FoodProductDetailsScreen: Error adding to diet: $e');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Error adding to diet: $e');
       if (mounted) {
         setState(() {
           _isAddingToDiet = false;
@@ -366,7 +367,7 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
       final now = DateTime.now();
       final dateKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      debugPrint('FoodProductDetailsScreen: Submitting feedback - userId: $userId, dateKey: $dateKey');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Submitting feedback - userId: $userId, dateKey: $dateKey');
 
       // Reference to the foodFeedbacks subcollection
       // Structure: feedbacks/{userId}/foodFeedbacks/{foodFeedbackId}
@@ -396,19 +397,19 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
         // Update existing document that has this date field
         final docId = existingDocs.docs.first.id;
         await foodFeedbacksRef.doc(docId).update(feedbackData);
-        debugPrint('FoodProductDetailsScreen: Updated existing feedback document: $docId');
+        if (kDebugMode) debugPrint('FoodProductDetailsScreen: Updated existing feedback document: $docId');
       } else {
         // Create new document with auto-generated ID (foodFeedbackId)
         await foodFeedbacksRef.add(feedbackData);
-        debugPrint('FoodProductDetailsScreen: Created new feedback document with date: $dateKey');
+        if (kDebugMode) debugPrint('FoodProductDetailsScreen: Created new feedback document with date: $dateKey');
       }
 
       if (mounted) {
         _showSuccessSnackBar('Thank you for your feedback!');
       }
     } catch (e, stackTrace) {
-      debugPrint('FoodProductDetailsScreen: Error submitting feedback: $e');
-      debugPrint('FoodProductDetailsScreen: Stack trace: $stackTrace');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Error submitting feedback: $e');
+      if (kDebugMode) debugPrint('FoodProductDetailsScreen: Stack trace: $stackTrace');
       if (mounted) {
         _showErrorSnackBar('Failed to submit feedback: $e');
       }
@@ -494,12 +495,11 @@ class _FoodProductDetailsScreenState extends State<FoodProductDetailsScreen> {
                     child: CachedNetworkImage(
                       imageUrl: widget.product.imageUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[900],
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
+                      placeholder: (context, url) => ShimmerLoading(
+                        child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          color: Colors.grey[900],
                         ),
                       ),
                       errorWidget: (context, url, error) => Container(

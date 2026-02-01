@@ -3,13 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 
 /// Chart type enum
 enum ChartType {
   weight,
   calories,
-  sleep,
   heartRate,
+  steps,
 }
 
 /// Model for chart data point
@@ -48,7 +49,7 @@ enum ChartState {
   hasData,
 }
 
-/// Widget displaying health metrics chart (Weight, Calories, Sleep)
+/// Widget displaying health metrics chart (Weight, Calories, Heart rate, Steps)
 class HealthMetricsChart extends StatefulWidget {
   final ChartSeries series;
   final String title;
@@ -59,6 +60,10 @@ class HealthMetricsChart extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback? onRetry;
   final Map<String, String>? summaryMetrics; // e.g., {'avg': '72 bpm', 'trend': '+5 vs last week'}
+  /// When set (e.g. for weight chart), shows a plus icon instead of Week/Month toggle; called when user taps to add/update weight.
+  final VoidCallback? onAddTap;
+  /// When true, renders a bar chart instead of a line chart (e.g. for Steps, Heart rate).
+  final bool useBarChart;
 
   const HealthMetricsChart({
     super.key,
@@ -71,6 +76,8 @@ class HealthMetricsChart extends StatefulWidget {
     this.errorMessage,
     this.onRetry,
     this.summaryMetrics,
+    this.onAddTap,
+    this.useBarChart = false,
   });
 
   @override
@@ -173,29 +180,45 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
                   ],
                 ),
               ),
-              // Week/Month Toggle
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20.r),
+              // For weight chart: plus icon to add/update weight; otherwise Week/Month toggle
+              if (widget.chartType == ChartType.weight && widget.onAddTap != null)
+                IconButton(
+                  onPressed: widget.onAddTap,
+                  icon: Icon(
+                    Icons.add_circle_outline,
+                    color: widget.series.color,
+                    size: 28.sp,
+                  ),
+                  tooltip: 'Add or update weight',
+                )
+              else if (widget.chartType != ChartType.weight)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildToggleButton('Week', true),
+                      _buildToggleButton('Month', false),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildToggleButton('Week', true),
-                    _buildToggleButton('Month', false),
-                  ],
-                ),
-              ),
             ],
           ),
           SizedBox(height: 15.h),
-          // Chart
+          // Chart (bar or line)
           SizedBox(
             height: 190.h,
-            child: LineChart(
-              _buildChartData(maxValue, minValue, hasValidData, highContrast),
-            ),
+            child: widget.useBarChart
+                ? BarChart(
+                    _buildBarChartData(maxValue, minValue, hasValidData, highContrast),
+                    swapAnimationDuration: const Duration(milliseconds: 250),
+                  )
+                : LineChart(
+                    _buildChartData(maxValue, minValue, hasValidData, highContrast),
+                  ),
           ),
         ],
       ),
@@ -265,6 +288,13 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
             reservedSize: 30,
             getTitlesWidget: (value, meta) {
               final index = value.toInt();
+              // Weight chart with 15 days: show only 6 X-axis labels at indices 0, 2, 5, 8, 11, 14
+              const weightChartLabelIndices = [0, 2, 5, 8, 11, 14];
+              if (widget.chartType == ChartType.weight &&
+                  dataPoints.length == 15 &&
+                  !weightChartLabelIndices.contains(index)) {
+                return const SizedBox.shrink();
+              }
               if (index >= 0 && index < dataPoints.length) {
                 return Padding(
                   padding: EdgeInsets.only(top: 8.h),
@@ -401,6 +431,135 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
     );
   }
 
+  BarChartData _buildBarChartData(double maxValue, double minValue, bool hasValidData, bool highContrast) {
+    final dataPoints = _getWeeklyDataPoints();
+    final interval = _getYAxisInterval();
+    final adjustedMin = _getMinValue();
+    final adjustedMax = _getMaxValue();
+
+    final barGroups = dataPoints.asMap().entries.map((entry) {
+      final i = entry.key;
+      final point = entry.value;
+      final value = (point.value != null && point.value! > 0) ? point.value! : 0.0;
+      return BarChartGroupData(
+        x: i,
+        barRods: [
+          BarChartRodData(
+            toY: value.clamp(adjustedMin, adjustedMax),
+            color: widget.series.color,
+            width: 12.w,
+            borderRadius: BorderRadius.circular(4.r),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: adjustedMax,
+              color: Colors.white.withOpacity(0.06),
+            ),
+          ),
+        ],
+        showingTooltipIndicators: _touchedIndex == i ? [0] : [],
+      );
+    }).toList();
+
+    return BarChartData(
+      alignment: BarChartAlignment.spaceAround,
+      maxY: adjustedMax,
+      minY: adjustedMin,
+      barGroups: barGroups,
+      gridData: FlGridData(
+        show: hasValidData,
+        drawVerticalLine: false,
+        horizontalInterval: interval,
+        getDrawingHorizontalLine: (value) => FlLine(
+          color: Colors.white.withOpacity(highContrast ? 0.3 : 0.1),
+          strokeWidth: 1,
+        ),
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 30,
+            getTitlesWidget: (value, meta) {
+              final index = value.toInt();
+              if (index >= 0 && index < dataPoints.length) {
+                return Padding(
+                  padding: EdgeInsets.only(top: 8.h),
+                  child: Text(
+                    dataPoints[index].label,
+                    style: GoogleFonts.ubuntu(
+                      fontSize: 10.sp,
+                      color: Colors.white.withOpacity(0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }
+              return const Text('');
+            },
+          ),
+        ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 50,
+            interval: interval,
+            getTitlesWidget: (value, meta) {
+              if ((value % interval) < 0.01 && value >= adjustedMin && value <= adjustedMax) {
+                return Text(
+                  _formatYAxisValue(value),
+                  style: GoogleFonts.ubuntu(
+                    fontSize: 10.sp,
+                    color: Colors.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              }
+              return const Text('');
+            },
+          ),
+        ),
+      ),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+      ),
+      barTouchData: BarTouchData(
+        enabled: true,
+        touchTooltipData: BarTouchTooltipData(
+          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+            if (groupIndex >= 0 && groupIndex < dataPoints.length) {
+              final point = dataPoints[groupIndex];
+              final unit = _getUnit();
+              return BarTooltipItem(
+                '${widget.series.name}\n${_formatYAxisValue(rod.toY)} $unit\n${point.label}',
+                GoogleFonts.ubuntu(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.bold,
+                  color: widget.series.color,
+                ),
+              );
+            }
+            return null;
+          },
+          tooltipPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+          tooltipMargin: 8,
+        ),
+        touchCallback: (FlTouchEvent event, BarTouchResponse? response) {
+          if (!event.isInterestedForInteractions || response == null) {
+            setState(() => _touchedIndex = null);
+            return;
+          }
+          setState(() {
+            _touchedIndex = response.spot?.touchedBarGroupIndex;
+          });
+        },
+      ),
+    );
+  }
+
   List<ChartDataPoint> _getWeeklyDataPoints() {
     return widget.series.dataPoints;
   }
@@ -424,13 +583,11 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
           // Calories: 200-800 kcal range with monthly variation
           value = 200 + (index % 6) * 120.0;
           break;
-        case ChartType.sleep:
-          // Sleep: 6-9 hours range with monthly variation
-          value = 6 + (index % 6) * 0.5;
-          break;
         case ChartType.heartRate:
-          // Heart Rate: 60-100 bpm range with monthly variation
           value = 60 + (index % 6) * 6.0;
+          break;
+        case ChartType.steps:
+          value = 5000 + (index % 6) * 2000.0;
           break;
       }
       
@@ -473,8 +630,6 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
           }
         }
         return 4000.0;
-      case ChartType.sleep:
-        return 20.0;
       case ChartType.heartRate:
         // Dynamic for heart rate if all data < 100 bpm
         final validValues = widget.series.dataPoints
@@ -488,6 +643,16 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
           }
         }
         return 200.0;
+      case ChartType.steps:
+        final validValues = widget.series.dataPoints
+            .where((p) => p.value != null && p.value! > 0)
+            .map((p) => p.value!)
+            .toList();
+        if (validValues.isNotEmpty) {
+          final maxData = validValues.reduce((a, b) => a > b ? a : b);
+          return (maxData + 2000).clamp(2000.0, 50000.0);
+        }
+        return 15000.0;
     }
   }
 
@@ -507,7 +672,7 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       // Default to 40 kg if no data (reasonable adult minimum)
       return 40.0;
     }
-    // All other graphs start from 0
+    if (widget.chartType == ChartType.steps) return 0.0;
     return 0.0;
   }
 
@@ -522,11 +687,10 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       case ChartType.calories:
         // Use 250 kcal intervals if max < 2500, otherwise 500 kcal
         return maxValue < 2500 ? 250.0 : 500.0;
-      case ChartType.sleep:
-        return 2.0;
       case ChartType.heartRate:
-        // Use 10 bpm intervals if max < 120, otherwise 20 bpm
         return maxValue < 120 ? 10.0 : 20.0;
+      case ChartType.steps:
+        return maxValue < 20000 ? 2000.0 : 5000.0;
     }
   }
 
@@ -539,11 +703,9 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       case ChartType.calories:
         // Calories: show as "800", "600", "400", "200" (kcal)
         return value.toInt().toString();
-      case ChartType.sleep:
-        // Sleep: show as "9", "8", "7", "6" (hrs)
-        return value.toInt().toString();
       case ChartType.heartRate:
-        // Heart Rate: show as "100", "80", "60", "40" (bpm)
+        return value.toInt().toString();
+      case ChartType.steps:
         return value.toInt().toString();
     }
   }
@@ -554,10 +716,10 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
         return 'kg';
       case ChartType.calories:
         return 'kcal';
-      case ChartType.sleep:
-        return 'hrs';
       case ChartType.heartRate:
         return 'bpm';
+      case ChartType.steps:
+        return 'steps';
     }
   }
 
@@ -625,7 +787,7 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
       case ChartType.heartRate:
         icon = Icons.favorite;
         message = 'No heart rate data yet';
-        secondaryMessage = 'Connect a device or start a workout to begin tracking.';
+        secondaryMessage = 'Heart rate syncs from wearables (e.g. Wear OS, Fitbit, Garmin) or workout apps that write to Google Fit. Connect a device or log a workout to see data here.';
         break;
       case ChartType.calories:
         icon = Icons.local_fire_department;
@@ -637,10 +799,10 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
         message = 'No weight data yet';
         secondaryMessage = 'Add your weight to start tracking your progress.';
         break;
-      case ChartType.sleep:
-        icon = Icons.bedtime;
-        message = 'No sleep data yet';
-        secondaryMessage = 'Connect a device to track your sleep.';
+      case ChartType.steps:
+        icon = Icons.directions_walk;
+        message = 'No steps data yet';
+        secondaryMessage = 'Sync with Google Fit to see your daily steps.';
         break;
     }
 
@@ -734,22 +896,15 @@ class _HealthMetricsChartState extends State<HealthMetricsChart> {
           SizedBox(height: 15.h),
           SizedBox(
             height: 190.h,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: widget.series.color,
-                  ),
-                  SizedBox(height: 16.h),
-                  Text(
-                    'Loading your data...',
-                    style: GoogleFonts.ubuntu(
-                      fontSize: 12.sp,
-                      color: Colors.white.withOpacity(0.7),
-                    ),
-                  ),
-                ],
+            child: ShimmerLoading(
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                margin: EdgeInsets.symmetric(horizontal: 16.w),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
               ),
             ),
           ),

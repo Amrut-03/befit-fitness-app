@@ -40,7 +40,7 @@ class _FitnessReadingItemState extends State<FitnessReadingItem>
   late Animation<double> _scaleAnimation;
   late Animation<double> _translateAnimation;
   double _previousValue = 0.0;
-  bool _isAnimating = false;
+  final ValueNotifier<bool> _isAnimatingNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -121,15 +121,11 @@ class _FitnessReadingItemState extends State<FitnessReadingItem>
     //   );
     // }
     
-    setState(() {
-      _isAnimating = true;
-    });
-    
+    _isAnimatingNotifier.value = true;
+
     _animationController.forward().then((_) {
       _animationController.reverse().then((_) {
-        setState(() {
-          _isAnimating = false;
-        });
+        _isAnimatingNotifier.value = false;
       });
     });
     
@@ -153,6 +149,7 @@ class _FitnessReadingItemState extends State<FitnessReadingItem>
 
   @override
   void dispose() {
+    _isAnimatingNotifier.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -166,10 +163,12 @@ class _FitnessReadingItemState extends State<FitnessReadingItem>
       child: AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
-            return Transform.translate(
+            return ValueListenableBuilder<bool>(
+              valueListenable: _isAnimatingNotifier,
+              builder: (_, isAnimating, __) => Transform.translate(
               offset: Offset(0, _translateAnimation.value),
               child: Transform.scale(
-                scale: _isAnimating ? _scaleAnimation.value : 1.0,
+                scale: isAnimating ? _scaleAnimation.value : 1.0,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -216,9 +215,10 @@ class _FitnessReadingItemState extends State<FitnessReadingItem>
                   ],
                 ),
               ),
+            )
             );
-          },
-        ),
-    );
+          }
+      )
+      );
   }
 }

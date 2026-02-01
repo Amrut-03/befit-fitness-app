@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/food_scanner/presentation/screens/food_product_details_screen.dart';
 import 'package:befit_fitness_app/src/food_scanner/data/datasources/food_api_data_source.dart';
 import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
@@ -76,15 +77,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     try {
       // Try to start the camera
       await _controller.start();
-      debugPrint('BarcodeScannerScreen: Camera started successfully');
+      if (kDebugMode) debugPrint('BarcodeScannerScreen: Camera started successfully');
     } catch (e) {
       final errorString = e.toString().toLowerCase();
       // If already started, that's fine - camera is working
       if (errorString.contains('already started') || 
           errorString.contains('called start() while already started')) {
-        debugPrint('BarcodeScannerScreen: Camera already started - this is fine');
+        if (kDebugMode) debugPrint('BarcodeScannerScreen: Camera already started - this is fine');
       } else {
-      debugPrint('BarcodeScannerScreen: Error starting camera: $e');
+      if (kDebugMode) debugPrint('BarcodeScannerScreen: Error starting camera: $e');
       }
     }
   }
@@ -190,17 +191,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         final barcodeNumber = _extractBarcodeNumber(barcode.rawValue);
         
         if (barcodeNumber != null && barcodeNumber.isNotEmpty) {
-          debugPrint('BarcodeScannerScreen: Extracted barcode from image: $barcodeNumber (original: ${barcode.rawValue})');
+          if (kDebugMode) debugPrint('BarcodeScannerScreen: Extracted barcode from image: $barcodeNumber (original: ${barcode.rawValue})');
           await _processBarcode(barcodeNumber);
         } else {
-          debugPrint('BarcodeScannerScreen: Could not extract valid barcode from: ${barcode.rawValue}');
+          if (kDebugMode) debugPrint('BarcodeScannerScreen: Could not extract valid barcode from: ${barcode.rawValue}');
           _showBarcodeNotFoundDialog();
         }
       } else {
         _showBarcodeNotFoundDialog();
       }
     } catch (e) {
-      debugPrint('BarcodeScannerScreen: Error analyzing image: $e');
+      if (kDebugMode) debugPrint('BarcodeScannerScreen: Error analyzing image: $e');
       if (mounted) {
         _showErrorDialog('Failed to scan image: $e');
       }
@@ -222,11 +223,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     // Extract clean barcode number (from camera, so use isFromCamera flag)
     final barcodeNumber = _extractBarcodeNumber(barcode.rawValue, isFromCamera: true);
     if (barcodeNumber == null || barcodeNumber.isEmpty) {
-      debugPrint('BarcodeScannerScreen: Could not extract barcode from camera scan: ${barcode.rawValue}');
+      if (kDebugMode) debugPrint('BarcodeScannerScreen: Could not extract barcode from camera scan: ${barcode.rawValue}');
       return;
     }
 
-    debugPrint('BarcodeScannerScreen: Camera detected barcode: $barcodeNumber (original: ${barcode.rawValue})');
+    if (kDebugMode) debugPrint('BarcodeScannerScreen: Camera detected barcode: $barcodeNumber (original: ${barcode.rawValue})');
 
     setState(() {
       _scanAttempts++;
@@ -639,8 +640,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(
-                          color: AppColors.primary,
+                        ShimmerLoading(
+                          child: Container(
+                            width: 120.w,
+                            height: 120.w,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(16.r),
+                            ),
+                          ),
                         ),
                         SizedBox(height: 20.h),
                         Text(

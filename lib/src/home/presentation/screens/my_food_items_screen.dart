@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
 import 'package:befit_fitness_app/src/food_scanner/data/services/food_storage_service.dart';
 import 'package:befit_fitness_app/src/home/presentation/screens/manual_food_entry_screen.dart';
@@ -140,7 +142,7 @@ class _MyFoodItemsScreenState extends State<MyFoodItemsScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading food items: $e');
+      if (kDebugMode) debugPrint('Error loading food items: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -392,11 +394,7 @@ class _MyFoodItemsScreenState extends State<MyFoodItemsScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            )
+          ? const ShimmerListCards(itemCount: 8, cardHeight: 100)
           : _foodItems.isEmpty
               ? Center(
                   child: Column(

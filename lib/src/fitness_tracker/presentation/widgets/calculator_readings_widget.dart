@@ -45,7 +45,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
             Divider(
               indent: 8.w,
               endIndent: 8.w,
-              color: Colors.white,
+              color: Colors.grey.withOpacity(0.2),
             ),
             FitnessReadingItem(
               onTap: onClick,
@@ -60,7 +60,7 @@ class CalculatorReadingsWidget extends StatelessWidget {
             Divider(
               indent: 8.w,
               endIndent: 8.w,
-              color: Colors.white,
+              color: Colors.grey.withOpacity(0.2),
             ),
             FitnessReadingItem(
               onTap: onClick,

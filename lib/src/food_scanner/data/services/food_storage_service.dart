@@ -28,12 +28,12 @@ class FoodStorageService {
   Future<bool> saveScannedFoodItem(FoodProduct product) async {
     try {
       if (_userId.isEmpty) {
-        debugPrint('FoodStorageService: User not authenticated');
+        if (kDebugMode) debugPrint('FoodStorageService: User not authenticated');
         throw Exception('User not authenticated');
       }
 
       final normalizedName = _normalizeFoodName(product.name);
-      debugPrint('FoodStorageService: Saving product - userId: $_userId, normalizedName: $normalizedName');
+      if (kDebugMode) debugPrint('FoodStorageService: Saving product - userId: $_userId, normalizedName: $normalizedName');
       
       // Reference to the foodItems collection
       // Structure: users/{userId}/foodItems/barcodeScannedFood/foodItems/{randomDocId}
@@ -78,21 +78,21 @@ class FoodStorageService {
         // Document exists, update it
         final docId = existingDocs.docs.first.id;
         await foodItemsCollection.doc(docId).update(productData);
-        debugPrint('FoodStorageService: Updated existing document: $docId');
+        if (kDebugMode) debugPrint('FoodStorageService: Updated existing document: $docId');
       } else {
         // Document doesn't exist, create new one with random ID
         await foodItemsCollection.add({
           ...productData,
           'createdAt': FieldValue.serverTimestamp(),
         });
-        debugPrint('FoodStorageService: Created new document with random ID');
+        if (kDebugMode) debugPrint('FoodStorageService: Created new document with random ID');
       }
 
-      debugPrint('FoodStorageService: Successfully saved food item');
+      if (kDebugMode) debugPrint('FoodStorageService: Successfully saved food item');
       return true;
     } catch (e, stackTrace) {
-      debugPrint('FoodStorageService: Error saving food item: $e');
-      debugPrint('FoodStorageService: Stack trace: $stackTrace');
+      if (kDebugMode) debugPrint('FoodStorageService: Error saving food item: $e');
+      if (kDebugMode) debugPrint('FoodStorageService: Stack trace: $stackTrace');
       throw Exception('Failed to save food item: $e');
     }
   }
@@ -121,7 +121,7 @@ class FoodStorageService {
       
       return existingDocs.docs.isNotEmpty;
     } catch (e) {
-      debugPrint('FoodStorageService: Error checking if food item is saved: $e');
+      if (kDebugMode) debugPrint('FoodStorageService: Error checking if food item is saved: $e');
       return false;
     }
   }

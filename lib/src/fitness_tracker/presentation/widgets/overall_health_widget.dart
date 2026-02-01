@@ -169,25 +169,6 @@ class _OverallHealthWidgetState extends State<OverallHealthWidget>
           ),
           child: Stack(
             children: [
-              Positioned(
-                top: 8.h,
-                right: 8.w,
-                child: GestureDetector(
-                  onTap: widget.onInfoTap,
-                  child: Container(
-                    padding: EdgeInsets.all(6.w),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.info_outline,
-                      color: Colors.white,
-                      size: 18.sp,
-                    ),
-                  ),
-                ),
-              ),
               Align(
                 alignment: Alignment.center,
                 child: GestureDetector(
@@ -225,6 +206,31 @@ class _OverallHealthWidgetState extends State<OverallHealthWidget>
                   ),
                 ),
               ),
+              // Info icon on top so it receives taps first (was behind chart and not tappable)
+              if (widget.onInfoTap != null)
+                Positioned(
+                  top: 8.h,
+                  right: 8.w,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: widget.onInfoTap,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.info_outline,
+                          color: Colors.white,
+                          size: 18.sp,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

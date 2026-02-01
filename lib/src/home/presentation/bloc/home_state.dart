@@ -28,6 +28,8 @@ class HomeLoaded extends HomeState {
   final UserProfile userProfile;
   final FitnessData? fitnessData;
   final List<FitnessData> weeklyFitnessData;
+  /// Last 15 days of fitness data for weight chart (oldest to newest).
+  final List<FitnessData> weightChartFitnessData;
   final bool isFetchingFitnessData;
   final bool isFetchingWeeklyData;
   // Body Chart state
@@ -40,6 +42,7 @@ class HomeLoaded extends HomeState {
     required this.userProfile,
     this.fitnessData,
     this.weeklyFitnessData = const [],
+    this.weightChartFitnessData = const [],
     this.isFetchingFitnessData = false,
     this.isFetchingWeeklyData = false,
     this.selectedMuscles = const {},
@@ -52,6 +55,7 @@ class HomeLoaded extends HomeState {
     UserProfile? userProfile,
     FitnessData? fitnessData,
     List<FitnessData>? weeklyFitnessData,
+    List<FitnessData>? weightChartFitnessData,
     bool? isFetchingFitnessData,
     bool? isFetchingWeeklyData,
     Set<Muscle>? selectedMuscles,
@@ -63,6 +67,7 @@ class HomeLoaded extends HomeState {
       userProfile: userProfile ?? this.userProfile,
       fitnessData: fitnessData ?? this.fitnessData,
       weeklyFitnessData: weeklyFitnessData ?? this.weeklyFitnessData,
+      weightChartFitnessData: weightChartFitnessData ?? this.weightChartFitnessData,
       isFetchingFitnessData: isFetchingFitnessData ?? this.isFetchingFitnessData,
       isFetchingWeeklyData: isFetchingWeeklyData ?? this.isFetchingWeeklyData,
       selectedMuscles: selectedMuscles ?? this.selectedMuscles,
@@ -77,6 +82,7 @@ class HomeLoaded extends HomeState {
         userProfile,
         fitnessData,
         weeklyFitnessData,
+        weightChartFitnessData,
         isFetchingFitnessData,
         isFetchingWeeklyData,
         selectedMuscles,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,31 +38,72 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
     _loadMeals();
   }
 
+  /// Safely get meals as a list (Firestore may return List or Map).
+  static List<dynamic> _mealsAsList(dynamic value) {
+    if (value == null) return [];
+    if (value is List<dynamic>) return value;
+    if (value is Map) {
+      final map = value as Map;
+      final keys = map.keys.whereType<String>().toList()
+        ..sort((a, b) {
+          final na = int.tryParse(a);
+          final nb = int.tryParse(b);
+          if (na != null && nb != null) return na.compareTo(nb);
+          return a.compareTo(b);
+        });
+      return keys.map((k) => map[k]).whereType<dynamic>().toList();
+    }
+    return [];
+  }
+
+  /// True if [timeHHmm] (24h "HH:mm") has passed today (or its scheduled occurrence has passed).
+  static bool _hasAlarmTimePassed(String? timeHHmm) {
+    if (timeHHmm == null || timeHHmm.isEmpty) return false;
+    final parts = timeHHmm.trim().split(RegExp(r'[:\s.]'));
+    if (parts.length < 2) return false;
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return false;
+    final now = DateTime.now();
+    final scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+    return !scheduled.isAfter(now);
+  }
+
+  /// Format "HH:mm" (24h) as 12h with AM/PM.
+  static String _formatTime12h(String timeHHmm) {
+    final parts = timeHHmm.trim().split(RegExp(r'[:\s.]'));
+    if (parts.length < 2) return timeHHmm;
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return timeHHmm;
+    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final ampm = hour < 12 ? 'AM' : 'PM';
+    return '$h12:${minute.toString().padLeft(2, '0')} $ampm';
+  }
+
   void _loadMeals() {
-    final meals = widget.planData['meals'] as List<dynamic>? ?? [];
+    final meals = _mealsAsList(widget.planData['meals']);
+    var anyAutoMarked = false;
     _meals = meals.map((meal) {
       final mealMap = Map<String, dynamic>.from(meal as Map<String, dynamic>);
       final product = mealMap['product'] as Map<String, dynamic>? ?? {};
-      // Ensure product has isConsumed field
       if (!product.containsKey('isConsumed')) {
         product['isConsumed'] = false;
+      }
+      final alarmTime = mealMap['alarmTime'] as String? ?? mealMap['mealTime'] as String?;
+      if (alarmTime != null && alarmTime.isNotEmpty && _hasAlarmTimePassed(alarmTime)) {
+        if (product['isConsumed'] != true) {
+          product['isConsumed'] = true;
+          anyAutoMarked = true;
+        }
       }
       mealMap['product'] = product;
       return mealMap;
     }).toList();
-  }
-
-  void _toggleMealConsumed(int mealIndex) {
-    if (_isSaving) return;
-    
-    setState(() {
-      final meal = _meals[mealIndex];
-      final product = meal['product'] as Map<String, dynamic>;
-      final currentValue = product['isConsumed'] as bool? ?? false;
-      product['isConsumed'] = !currentValue;
-      meal['product'] = product;
+    if (anyAutoMarked) {
       _hasChanges = true;
-    });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _saveConsumedMeals());
+    }
   }
 
   bool _isMealConsumed(int mealIndex) {
@@ -108,7 +150,7 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
         context.pop(true);
       }
     } catch (e) {
-      debugPrint('Error saving consumed meals: $e');
+      if (kDebugMode) debugPrint('Error saving consumed meals: $e');
       if (mounted) {
         setState(() {
           _isSaving = false;
@@ -410,14 +452,6 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (isActive)
-                    Text(
-                      'Tap to mark as consumed',
-                      style: GoogleFonts.ubuntu(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 12.sp,
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -474,7 +508,7 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
     final product = meal['product'] as Map<String, dynamic>? ?? {};
     final nutrition = meal['nutrition'] as Map<String, dynamic>? ?? {};
     final mealName = meal['mealName'] as String? ?? 'Meal';
-    final mealTime = meal['mealTime'] as String? ?? '12:00';
+    final alarmTime = meal['alarmTime'] as String? ?? meal['mealTime'] as String?;
     final quantity = (nutrition['quantity'] as num?)?.toDouble() ?? 0.0;
     final servingUnit = nutrition['servingUnit'] as String? ?? 'grams';
     final productName = product['name'] as String? ?? 'Unknown';
@@ -485,9 +519,7 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
     final carbs = (nutrition['carbs'] as num?)?.toDouble() ?? 0.0;
     final fat = (nutrition['fat'] as num?)?.toDouble() ?? 0.0;
 
-    return GestureDetector(
-      onTap: isActive ? () => _toggleMealConsumed(index) : null,
-      child: Container(
+    return Container(
         margin: EdgeInsets.only(bottom: 16.h, left: 20.w, right: 20.w),
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
@@ -505,14 +537,6 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
           children: [
             Row(
               children: [
-                // Consumed Checkbox (only for active plans)
-                if (isActive)
-                  Checkbox(
-                    value: isConsumed,
-                    onChanged: (value) => _toggleMealConsumed(index),
-                    activeColor: AppColors.primary,
-                    checkColor: Colors.black,
-                  ),
                 // Product Image
                 imageUrl != null
                   ? ClipRRect(
@@ -586,37 +610,11 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
             ],
           ),
           SizedBox(height: 12.h),
-          // Meal Time and Name
+          // Meal Name, Alarm time, Quantity
           Wrap(
             spacing: 8.w,
             runSpacing: 8.h,
             children: [
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      color: AppColors.primary,
-                      size: 14.sp,
-                    ),
-                    SizedBox(width: 4.w),
-                    Text(
-                      mealTime,
-                      style: GoogleFonts.ubuntu(
-                        color: AppColors.primary,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                 decoration: BoxDecoration(
@@ -632,6 +630,33 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
                   ),
                 ),
               ),
+              if (alarmTime != null && alarmTime.isNotEmpty)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.alarm,
+                        color: Colors.orange,
+                        size: 14.sp,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        _formatTime12h(alarmTime),
+                        style: GoogleFonts.ubuntu(
+                          color: Colors.orange,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                 decoration: BoxDecoration(
@@ -675,7 +700,6 @@ class _DietPlanDetailScreenState extends State<DietPlanDetailScreen> {
             ],
           ),
         ],
-      ),
       ),
     );
   }

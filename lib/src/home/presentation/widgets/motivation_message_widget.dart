@@ -90,46 +90,6 @@ class _MotivationMessageWidgetState extends State<MotivationMessageWidget>
     if (widget.stepsPercentage < 100.0) _hasCelebratedSteps = false;
     if (widget.caloriesPercentage < 100.0) _hasCelebratedCalories = false;
     if (widget.moveMinPercentage < 100.0) _hasCelebratedMoveMin = false;
-    
-    // String? newMessage;
-    // 
-    // // Check for completion
-    // if (widget.stepsPercentage >= 100.0) {
-    //   newMessage = '🎉 Steps goal achieved! Amazing work!';
-    // } else if (widget.caloriesPercentage >= 100.0) {
-    //   newMessage = '🔥 Calories goal achieved! Keep it up!';
-    // } else if (widget.moveMinPercentage >= 100.0) {
-    //   newMessage = '💪 Move minutes goal achieved! You\'re unstoppable!';
-    // } else {
-    //   // Show progress messages
-    //   final stepsRemaining = 10000 - widget.steps;
-    //   final caloriesRemaining = 2000 - widget.calories;
-    //   final moveMinRemaining = (widget.moveMin != null) ? 30 - widget.moveMin! : 30;
-    //   
-    //   if (widget.stepsPercentage >= 90.0 && stepsRemaining > 0) {
-    //     newMessage = '🔥 ${stepsRemaining.toString()} steps to go! Almost there!';
-    //   } else if (widget.caloriesPercentage >= 90.0 && caloriesRemaining > 0) {
-    //     newMessage = '💪 ${caloriesRemaining.toStringAsFixed(0)} calories to go! You\'ve got this!';
-    //   } else if (widget.moveMinPercentage >= 90.0 && moveMinRemaining > 0) {
-    //     newMessage = '⚡ ${moveMinRemaining} minutes to go! Keep moving!';
-    //   } else if (widget.stepsPercentage >= 75.0 && stepsRemaining > 0) {
-    //     newMessage = '📈 Great progress! ${stepsRemaining.toString()} steps remaining';
-    //   } else if (widget.caloriesPercentage >= 75.0 && caloriesRemaining > 0) {
-    //     newMessage = '📈 Great progress! ${caloriesRemaining.toStringAsFixed(0)} calories remaining';
-    //   } else if (widget.moveMinPercentage >= 75.0 && moveMinRemaining > 0) {
-    //     newMessage = '📈 Great progress! ${moveMinRemaining} minutes remaining';
-    //   } else if (widget.stepsPercentage >= 50.0) {
-    //     newMessage = '🌟 Halfway there! Keep going!';
-    //   } else if (widget.caloriesPercentage >= 50.0) {
-    //     newMessage = '🌟 Halfway there! Keep going!';
-    //   } else if (widget.moveMinPercentage >= 50.0) {
-    //     newMessage = '🌟 Halfway there! Keep going!';
-    //   }
-    // }
-    // 
-    // if (newMessage != null && newMessage != _currentMessage) {
-    //   _showMessage(newMessage);
-    // }
   }
 
   void _showMessage(String message) {
@@ -148,50 +108,7 @@ class _MotivationMessageWidgetState extends State<MotivationMessageWidget>
   }
 
   void _celebrateMilestone(String type) {
-    // Trigger confetti if controller is provided
     widget.confettiController?.play();
-    
-    // Show celebration message
-    // String message;
-    // switch (type) {
-    //   case 'steps':
-    //     message = '🎉 Steps goal achieved! Amazing work!';
-    //     break;
-    //   case 'calories':
-    //     message = '🔥 Calories goal achieved! Keep it up!';
-    //     break;
-    //   case 'moveMin':
-    //     message = '💪 Move minutes goal achieved! You\'re unstoppable!';
-    //     break;
-    //   default:
-    //     message = '🎉 Goal achieved!';
-    // }
-    // 
-    // // Show SnackBar for milestone celebration at the top
-    // if (mounted) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(
-    //       content: Text(
-    //         message,
-    //         style: GoogleFonts.ubuntu(
-    //           fontWeight: FontWeight.w600,
-    //         ),
-    //       ),
-    //       backgroundColor: Colors.green,
-    //       duration: const Duration(seconds: 3),
-    //       behavior: SnackBarBehavior.floating,
-    //       margin: EdgeInsets.only(
-    //         top: MediaQuery.of(context).padding.top + 20.h,
-    //         left: 20.w,
-    //         right: 20.w,
-    //       ),
-    //     ),
-    //   );
-    // }
-    // 
-    // _showMessage(message);
-    
-    // Stop confetti after 2 seconds
     Timer(const Duration(seconds: 2), () {
       widget.confettiController?.stop();
     });

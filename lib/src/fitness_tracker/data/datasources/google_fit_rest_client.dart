@@ -19,14 +19,14 @@ class GoogleFitRestClient {
     try {
       final account = await _googleSignIn.signInSilently();
       if (account == null) {
-        debugPrint('GoogleFitRestClient: No signed in account');
+        if (kDebugMode) debugPrint('GoogleFitRestClient: No signed in account');
         return null;
       }
 
       final auth = await account.authentication;
       return auth.accessToken;
     } catch (e) {
-      debugPrint('GoogleFitRestClient: Error getting access token: $e');
+      if (kDebugMode) debugPrint('GoogleFitRestClient: Error getting access token: $e');
       return null;
     }
   }
@@ -135,7 +135,7 @@ class GoogleFitRestClient {
       final items = data['dataSource'] as List<dynamic>? ?? [];
       return items.cast<Map<String, dynamic>>();
     } catch (e) {
-      debugPrint('GoogleFitRestClient: Error getting data sources: $e');
+      if (kDebugMode) debugPrint('GoogleFitRestClient: Error getting data sources: $e');
       return [];
     }
   }
@@ -257,7 +257,7 @@ class GoogleFitRestClient {
         }
       }
     } catch (e) {
-      debugPrint('GoogleFitRestClient: Error getting data sources: $e');
+      if (kDebugMode) debugPrint('GoogleFitRestClient: Error getting data sources: $e');
     }
 
     // Create new data source if not found
@@ -297,7 +297,7 @@ class GoogleFitRestClient {
       return (data['dataStreamId'] ?? data['dataSourceId'] ?? dataSourceId) as String;
     } catch (e) {
       // If creation fails, return the ID we tried to use
-      debugPrint('GoogleFitRestClient: Error creating data source, using ID: $dataSourceId');
+      if (kDebugMode) debugPrint('GoogleFitRestClient: Error creating data source, using ID: $dataSourceId');
       return dataSourceId;
     }
   }

@@ -6,7 +6,6 @@ class AppConfig {
   static const String appVersion = '1.0.0';
   static const String appBuildNumber = '1';
 
-  // Environment
   static const bool isProduction = kReleaseMode;
   static const bool isDevelopment = kDebugMode;
 
@@ -24,29 +23,14 @@ class AppConfig {
 
   static String get rapidApiKey {
     try {
-      // Check if dotenv is initialized by trying to access it
-      // This will throw NotInitializedError if not loaded
       final env = dotenv.env;
       final key = env['EXERCISE_DB_API_KEY'] ?? '';
-      if (key.isNotEmpty) {
-        debugPrint('AppConfig: EXERCISE_DB_API_KEY loaded successfully');
-      } else {
-        debugPrint('AppConfig: EXERCISE_DB_API_KEY is empty in .env file');
-      }
       return key;
-    } catch (e) {
-      // Handle NotInitializedError or any other error
-      if (e.toString().contains('NotInitialized') || 
-          e.toString().contains('not initialized')) {
-        debugPrint('AppConfig: dotenv not initialized yet. Make sure dotenv.load() is called in main()');
-      } else {
-        debugPrint('AppConfig: Error accessing EXERCISE_DB_API_KEY: $e');
-      }
+    } catch (_) {
       return '';
     }
   }
 
-  // Firebase Configuration
   static const String firebaseProjectId = 'befit-app';
 
   // App URLs

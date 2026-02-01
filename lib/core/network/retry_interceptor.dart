@@ -12,20 +12,20 @@ class RetryInterceptor extends Interceptor {
     required Dio dio,
   }) : _dio = dio;
 
+  /// Delay for 429 Too Many Requests (rate limit) – wait longer before retry
+  static const Duration rateLimitRetryDelay = Duration(seconds: 45);
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (_shouldRetry(err)) {
       final retryCount = err.requestOptions.extra['retryCount'] ?? 0;
-      
+
       if (retryCount < retries) {
-        final delay = retryCount < retryDelays.length
-            ? retryDelays[retryCount]
-            : retryDelays.last;
-        
+        final delay = _delayFor(err, retryCount);
         await Future.delayed(delay);
-        
+
         err.requestOptions.extra['retryCount'] = retryCount + 1;
-        
+
         try {
           // Retry the request using the same Dio instance
           final response = await _dio.fetch(err.requestOptions);
@@ -44,14 +44,24 @@ class RetryInterceptor extends Interceptor {
     super.onError(err, handler);
   }
 
+  Duration _delayFor(DioException err, int retryCount) {
+    if (err.response?.statusCode == 429) {
+      return rateLimitRetryDelay;
+    }
+    return retryCount < retryDelays.length
+        ? retryDelays[retryCount]
+        : retryDelays.last;
+  }
+
   bool _shouldRetry(DioException err) {
-    // Retry on network errors or 5xx server errors
+    // Retry on network errors, 5xx server errors, or 429 rate limit
     return err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.sendTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.connectionError ||
         (err.response?.statusCode != null &&
-            err.response!.statusCode! >= 500 &&
-            err.response!.statusCode! < 600);
+            (err.response!.statusCode! == 429 ||
+                (err.response!.statusCode! >= 500 &&
+                    err.response!.statusCode! < 600)));
   }
 }

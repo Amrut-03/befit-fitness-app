@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:befit_fitness_app/src/fitness_tracker/domain/repositories/google_fit_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -20,7 +21,7 @@ class PermissionService {
 
       return bodySensorsGranted && activityGranted;
     } catch (e) {
-      debugPrint('PermissionService: Error requesting Android permissions: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error requesting Android permissions: $e');
       return false;
     }
   }
@@ -40,7 +41,7 @@ class PermissionService {
         (granted) => granted ? true : _requestGoogleFitDirectly(),
       );
     } catch (e) {
-      debugPrint('PermissionService: Error requesting Google Fit permissions: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error requesting Google Fit permissions: $e');
       return _requestGoogleFitDirectly();
     }
   }
@@ -54,7 +55,7 @@ class PermissionService {
       final auth = await account.authentication;
       return auth.accessToken != null;
     } catch (e) {
-      debugPrint('PermissionService: Error in Google Fit request: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error in Google Fit request: $e');
       return false;
     }
   }
@@ -68,7 +69,7 @@ class PermissionService {
       final auth = await account.authentication;
       return auth.accessToken != null;
     } catch (e) {
-      debugPrint('PermissionService: Error registering with Google Fit: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error registering with Google Fit: $e');
       return false;
     }
   }
@@ -83,7 +84,7 @@ class PermissionService {
         (hasPerms) => hasPerms,
       );
     } catch (e) {
-      debugPrint('PermissionService: Error connecting to Google Fit: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error connecting to Google Fit: $e');
       return false;
     }
   }
@@ -92,7 +93,7 @@ class PermissionService {
     try {
       await ph.openAppSettings();
     } catch (e) {
-      debugPrint('PermissionService: Error opening app settings: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error opening app settings: $e');
     }
   }
   
@@ -113,7 +114,7 @@ class PermissionService {
         (hasPerms) => hasPerms,
       );
     } catch (e) {
-      debugPrint('PermissionService: Error checking permissions: $e');
+      if (kDebugMode) debugPrint('PermissionService: Error checking permissions: $e');
       return false;
     }
   }

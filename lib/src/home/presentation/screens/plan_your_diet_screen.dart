@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,16 +8,19 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/di/injection_container.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
+import 'package:befit_fitness_app/src/home/data/services/meal_alarm_service.dart';
 import 'package:befit_fitness_app/src/home/domain/models/daily_food_entry.dart';
 import 'package:befit_fitness_app/src/home/data/services/daily_food_service.dart';
-import 'package:befit_fitness_app/src/home/data/services/macro_calculation_service.dart';
 import 'package:befit_fitness_app/src/home/data/services/goal_service.dart';
-import 'package:befit_fitness_app/src/food_scanner/presentation/screens/barcode_scanner_screen.dart';
-import 'package:befit_fitness_app/src/food_scanner/presentation/screens/food_product_details_screen.dart';
 import 'package:befit_fitness_app/src/food_scanner/domain/models/food_product.dart';
 import 'package:befit_fitness_app/src/food_scanner/data/services/food_storage_service.dart';
 import 'package:befit_fitness_app/src/home/presentation/widgets/add_food_bottom_sheet.dart';
 import 'package:befit_fitness_app/src/home/domain/models/food_unit.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+const _batteryChannel = MethodChannel('com.befit_fitness.app/battery');
 
 /// Screen for planning daily diet by adding food products
 class PlanYourDietScreen extends StatefulWidget {
@@ -93,7 +97,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
         _loadFoodEntries(),
       ]);
     } catch (e) {
-      debugPrint('Error loading data: $e');
+      if (kDebugMode) debugPrint('Error loading data: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -140,7 +144,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading macro goals: $e');
+      if (kDebugMode) debugPrint('Error loading macro goals: $e');
     }
   }
 
@@ -148,21 +152,36 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
     try {
       final entries = await _foodService.getTodayFoodEntries();
       if (mounted) {
-        // Sort by order, then by addedAt if order is the same
         entries.sort((a, b) {
           if (a.order != b.order) {
             return a.order.compareTo(b.order);
           }
           return a.addedAt.compareTo(b.addedAt);
         });
-        
         setState(() {
           _foodEntries = entries;
           _calculateConsumedMacros();
         });
+        // Only schedule meal reminders when this plan is active for today
+        final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final today = DateTime.now();
+        final dateString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+        final dailyGoalSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('dailyGoals')
+            .doc(dateString)
+            .get();
+        final activePlanId = dailyGoalSnap.data()?['dietPlanId'] as String?;
+        final alarmService = getIt<MealAlarmService>();
+        if (widget.planId != null && activePlanId == widget.planId) {
+          await alarmService.rescheduleFromEntries(entries);
+        } else {
+          await alarmService.cancelAllAlarms();
+        }
       }
     } catch (e) {
-      debugPrint('Error loading food entries: $e');
+      if (kDebugMode) debugPrint('Error loading food entries: $e');
     }
   }
 
@@ -220,9 +239,10 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
             product: product,
             quantity: savedQuantity,
             addedAt: DateTime.now(),
-            mealTime: mealData['mealTime'] as String? ?? '12:00',
+            mealTime: (mealData['alarmTime'] ?? mealData['mealTime']) as String? ?? '12:00',
             mealName: mealData['mealName'] as String? ?? 'Meal',
             order: mealData['order'] as int? ?? mealIndex,
+            alarmTime: mealData['alarmTime'] as String? ?? mealData['mealTime'] as String?,
           );
           
           entries.add(entry);
@@ -237,10 +257,27 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
             _calculateConsumedMacros();
             _isLoading = false;
           });
+          // Only schedule meal reminders when this plan is active for today
+          final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+          final today = DateTime.now();
+          final dateString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+          final dailyGoalSnap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('dailyGoals')
+              .doc(dateString)
+              .get();
+          final activePlanId = dailyGoalSnap.data()?['dietPlanId'] as String?;
+          final alarmService = getIt<MealAlarmService>();
+          if (widget.planId != null && activePlanId == widget.planId) {
+            await alarmService.rescheduleFromEntries(entries);
+          } else {
+            await alarmService.cancelAllAlarms();
+          }
         }
       }
     } catch (e) {
-      debugPrint('Error loading plan data: $e');
+      if (kDebugMode) debugPrint('Error loading plan data: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -284,31 +321,25 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
       // If servingSize is 5 pieces, defaultQuantity should be 5 pieces (not converted to grams)
       final defaultQuantity = quantity ?? product.nutrition.servingSize ?? 1.0;
       
-      // Determine default meal time and name based on current time
+      // Determine default meal name based on current time
       final now = DateTime.now();
-      String defaultMealTime = '12:00';
       String defaultMealName = 'Meal';
-      
       if (now.hour < 10) {
-        defaultMealTime = '08:00';
         defaultMealName = 'Breakfast';
       } else if (now.hour < 14) {
-        defaultMealTime = '12:00';
         defaultMealName = 'Lunch';
       } else if (now.hour < 18) {
-        defaultMealTime = '15:00';
         defaultMealName = 'Snack';
       } else {
-        defaultMealTime = '18:00';
         defaultMealName = 'Dinner';
       }
-      
+
       final entry = DailyFoodEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         product: product,
-        quantity: defaultQuantity, // Store in the same unit as servingSize (e.g., 5 pieces = 5)
+        quantity: defaultQuantity,
         addedAt: DateTime.now(),
-        mealTime: defaultMealTime,
+        mealTime: '12:00',
         mealName: defaultMealName,
         order: _foodEntries.length,
       );
@@ -385,13 +416,13 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
             .collection('entries')
             .doc(entry.id)
             .update({
-          'mealTime': entry.mealTime,
           'mealName': entry.mealName,
           'order': entry.order,
+          'alarmTime': entry.alarmTime ?? FieldValue.delete(),
         });
       }
     } catch (e) {
-      debugPrint('Error saving entries order: $e');
+      if (kDebugMode) debugPrint('Error saving entries order: $e');
     }
   }
 
@@ -437,7 +468,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
       // If creating new plan, check if any plan with this name exists
       return snapshot.docs.isNotEmpty;
     } catch (e) {
-      debugPrint('Error checking duplicate diet plan name: $e');
+      if (kDebugMode) debugPrint('Error checking duplicate diet plan name: $e');
       return false; // If error, allow save to proceed
     }
   }
@@ -465,7 +496,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting existing plan ID: $e');
+      if (kDebugMode) debugPrint('Error getting existing plan ID: $e');
       return null;
     }
   }
@@ -590,8 +621,8 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
         
         return {
           'mealName': entry.mealName,
-          'mealTime': entry.mealTime,
           'order': entry.order,
+          if (entry.alarmTime != null) 'alarmTime': entry.alarmTime,
           'product': {
             'name': entry.product.name,
             'barcode': entry.product.barcode ?? '',
@@ -689,7 +720,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
         context.pop(true);
       }
     } catch (e) {
-      debugPrint('Error saving diet plan: $e');
+      if (kDebugMode) debugPrint('Error saving diet plan: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -707,8 +738,8 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
     }
   }
 
-  Future<void> _showTimePicker(DailyFoodEntry entry) async {
-    final timeParts = entry.mealTime.split(':');
+  Future<void> _showAlarmTimePicker(DailyFoodEntry entry) async {
+    final timeParts = (entry.alarmTime ?? '12:00').split(':');
     final initialTime = TimeOfDay(
       hour: int.parse(timeParts[0]),
       minute: int.parse(timeParts[1]),
@@ -733,86 +764,139 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
     );
 
     if (pickedTime != null) {
-      setState(() {
-        final timeString = '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
-        final index = _foodEntries.indexWhere((e) => e.id == entry.id);
-        if (index != -1) {
-          _foodEntries[index] = entry.copyWith(mealTime: timeString);
-        }
-      });
-      await _saveEntriesOrder();
+      final timeString = '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
+      _applyAlarmTime(entry, timeString);
     }
   }
 
-  void _showMealNameDialog(DailyFoodEntry entry) {
-    final controller = TextEditingController(text: entry.mealName);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.black,
-        title: Text(
-          'Meal Name',
-          style: GoogleFonts.ubuntu(
-            color: Colors.white,
-            fontSize: 20.sp,
-            fontWeight: FontWeight.bold,
+  void _onAlarmMenuSelected(DailyFoodEntry entry, String? value) {
+    if (value == null) return;
+    if (value == 'clear') {
+      _applyAlarmTime(entry, null);
+      return;
+    }
+    if (value == 'change' || value == 'set') {
+      _showAlarmTimePicker(entry);
+    }
+  }
+
+  /// Format "HH:mm" (24h) as 12h with AM/PM (e.g. "15:30" -> "3:30 PM").
+  static String formatTime12h(String timeHHmm) {
+    final parts = timeHHmm.trim().split(RegExp(r'[:\s.]'));
+    if (parts.length < 2) return timeHHmm;
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return timeHHmm;
+    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final ampm = hour < 12 ? 'AM' : 'PM';
+    return '$h12:${minute.toString().padLeft(2, '0')} $ampm';
+  }
+
+  /// Returns "today" or "tomorrow" for when the next occurrence of [timeHHmm] will ring.
+  static String _whenAlarmRings(String timeHHmm) {
+    final parts = timeHHmm.split(RegExp(r'[:\s.]'));
+    if (parts.length < 2) return '';
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return '';
+    final now = DateTime.now();
+    var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+    if (!scheduled.isAfter(now)) scheduled = scheduled.add(const Duration(days: 1));
+    final today = DateTime(now.year, now.month, now.day);
+    final scheduledDate = DateTime(scheduled.year, scheduled.month, scheduled.day);
+    return scheduledDate == today ? 'today' : 'tomorrow';
+  }
+
+  Future<void> _applyAlarmTime(DailyFoodEntry entry, String? timeString) async {
+    setState(() {
+      final index = _foodEntries.indexWhere((e) => e.id == entry.id);
+      if (index != -1) {
+        _foodEntries[index] = timeString != null
+            ? entry.copyWith(alarmTime: timeString)
+            : entry.copyWith(clearAlarm: true);
+      }
+    });
+    if (!_isEditing) {
+      try {
+        await _foodService.updateAlarmTime(entry.id, timeString);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update alarm: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+    try {
+      final alarmService = getIt<MealAlarmService>();
+      if (timeString != null) {
+        await alarmService.scheduleAlarm(entry.copyWith(alarmTime: timeString));
+      } else {
+        await alarmService.cancelAlarm(entry.id);
+      }
+      if (mounted && timeString != null) {
+        final when = _whenAlarmRings(timeString);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              when.isNotEmpty
+                  ? 'Alarm set for ${formatTime12h(timeString)} ($when). For reminders when app is closed, set Battery to Unrestricted in app settings.'
+                  : 'Alarm set for ${formatTime12h(timeString)}. For reminders when app is closed, set Battery to Unrestricted in app settings.',
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Settings',
+              textColor: Colors.white,
+              onPressed: () => openAppSettings(),
+            ),
           ),
-        ),
-        content: TextField(
-          controller: controller,
-          style: GoogleFonts.ubuntu(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: 'Meal Name',
-            labelStyle: GoogleFonts.ubuntu(color: Colors.white.withOpacity(0.7)),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: AppColors.primary),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
-            ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Alarm disabled'),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 2),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.ubuntu(color: Colors.white),
-            ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reminder could not be set. Please enable notifications in device settings.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
-          ElevatedButton(
-            onPressed: () {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                setState(() {
-                  final index = _foodEntries.indexWhere((e) => e.id == entry.id);
-                  if (index != -1) {
-                    _foodEntries[index] = entry.copyWith(mealName: newName);
-                  }
-                });
-                _saveEntriesOrder();
-              }
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
-            child: Text(
-              'Save',
-              style: GoogleFonts.ubuntu(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    }
+  }
+
+  static const List<String> _mealNameOptions = [
+    'Breakfast',
+    'Snack',
+    'Lunch',
+    'Pre-workout',
+    'Post-workout',
+    'Dinner',
+  ];
+
+  void _onMealNameSelected(DailyFoodEntry entry, String? newName) {
+    if (newName == null || newName.isEmpty) return;
+    setState(() {
+      final index = _foodEntries.indexWhere((e) => e.id == entry.id);
+      if (index != -1) {
+        _foodEntries[index] = entry.copyWith(mealName: newName);
+      }
+    });
+    _saveEntriesOrder();
   }
 
   Future<void> _deleteEntry(DailyFoodEntry entry) async {
     try {
+      await getIt<MealAlarmService>().cancelAlarm(entry.id);
       await _foodService.deleteFoodEntry(entry.id);
       await _loadFoodEntries();
       
@@ -998,11 +1082,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
         ],
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            )
+          ? const ShimmerPlanYourDiet()
           : Column(
               children: [
                 // Diet Plan Name Input
@@ -1396,7 +1476,7 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
               );
             } catch (e) {
               // If any error occurs, just return the child
-              debugPrint('Error in proxyDecorator: $e');
+              if (kDebugMode) debugPrint('Error in proxyDecorator: $e');
               return child;
             }
           },
@@ -1538,55 +1618,111 @@ class _PlanYourDietScreenState extends State<PlanYourDietScreen> {
             ],
           ),
           SizedBox(height: 12.h),
-          // Time and Meal Name
+          // Meal Name and Set alarm
           Wrap(
             spacing: 8.w,
             runSpacing: 8.h,
             children: [
-              GestureDetector(
-                onTap: () => _showTimePicker(entry),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6.r),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        color: AppColors.primary,
-                        size: 14.sp,
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(
-                        entry.mealTime,
-                        style: GoogleFonts.ubuntu(
-                          color: AppColors.primary,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _showMealNameDialog(entry),
+              PopupMenuButton<String>(
+                onSelected: (value) => _onMealNameSelected(entry, value),
+                offset: Offset(0, 40.h),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                color: Colors.grey[900],
+                padding: EdgeInsets.zero,
+                itemBuilder: (context) => _mealNameOptions
+                    .map((name) => PopupMenuItem(
+                          value: name,
+                          child: Text(name, style: GoogleFonts.ubuntu(color: Colors.white, fontWeight: FontWeight.w600)),
+                        ))
+                    .toList(),
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4CAF50).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(6.r),
                   ),
-                  child: Text(
-                    entry.mealName,
-                    style: GoogleFonts.ubuntu(
-                      color: const Color(0xFF4CAF50),
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w600,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        entry.mealName,
+                        style: GoogleFonts.ubuntu(
+                          color: const Color(0xFF4CAF50),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down, color: const Color(0xFF4CAF50), size: 18.sp),
+                    ],
+                  ),
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) => _onAlarmMenuSelected(entry, value),
+                offset: Offset(0, 40.h),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                color: Colors.grey[900],
+                padding: EdgeInsets.zero,
+                itemBuilder: (context) => [
+                  if (entry.alarmTime != null)
+                    PopupMenuItem(
+                      value: 'change',
+                      child: Row(
+                        children: [
+                          Icon(Icons.access_time, color: AppColors.primary, size: 20.sp),
+                          SizedBox(width: 12.w),
+                          Text('Change time', style: GoogleFonts.ubuntu(color: Colors.white, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
+                  PopupMenuItem<String>(
+                    value: entry.alarmTime != null ? 'clear' : 'set',
+                    child: Row(
+                      children: [
+                        Icon(
+                          entry.alarmTime != null ? Icons.alarm_off : Icons.alarm_add,
+                          color: entry.alarmTime != null ? Colors.red : AppColors.primary,
+                          size: 20.sp,
+                        ),
+                        SizedBox(width: 12.w),
+                        Text(
+                          entry.alarmTime != null ? 'Disable alarm' : 'Set alarm',
+                          style: GoogleFonts.ubuntu(
+                            color: entry.alarmTime != null ? Colors.red : AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                  decoration: BoxDecoration(
+                    color: (entry.alarmTime != null ? Colors.orange : Colors.white).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        entry.alarmTime != null ? Icons.alarm : Icons.alarm_add,
+                        color: entry.alarmTime != null ? Colors.orange : Colors.white70,
+                        size: 14.sp,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        entry.alarmTime != null
+                            ? 'Alarm ${formatTime12h(entry.alarmTime!)}'
+                            : 'Set alarm',
+                        style: GoogleFonts.ubuntu(
+                          color: entry.alarmTime != null ? Colors.orange : Colors.white70,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down, color: entry.alarmTime != null ? Colors.orange : Colors.white70, size: 18.sp),
+                    ],
                   ),
                 ),
               ),

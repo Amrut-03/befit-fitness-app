@@ -1,12 +1,14 @@
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
 import 'package:befit_fitness_app/core/services/app_initialization_service.dart';
-import 'package:befit_fitness_app/core/widgets/widgets.dart';
+import 'package:befit_fitness_app/core/widgets/elevated_icon_button.dart';
+import 'package:befit_fitness_app/core/widgets/text_rich.dart';
 import 'package:befit_fitness_app/l10n/app_localizations.dart';
 import 'package:befit_fitness_app/src/auth/presentation/screens/login_page.dart';
 import 'package:befit_fitness_app/src/onboarding/domain/models/onboarding_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 class OnboardingPage extends StatelessWidget {
@@ -132,12 +134,16 @@ class OnboardingPage extends StatelessWidget {
                     ElevatedIconButton(
                       onPressed: () async {
                         if (isLastPage) {
-                          // Mark onboarding as completed
                           await AppInitializationService.setOnboardingCompleted();
-                          context.navigateToLogin();
+                          if (context.mounted) {
+                            context.go(LoginPage.route);
+                          }
                         } else {
-                          // Navigate to next page
-                          // context.navigateToOnboardingPage(pageIndex + 1);
+                          final nextIndex = pageIndex + 1;
+                          if (nextIndex < OnboardingContentRepository.totalPages &&
+                              context.mounted) {
+                            context.go('/onboarding/$nextIndex');
+                          }
                         }
                       },
                       minWidth: 100.w,

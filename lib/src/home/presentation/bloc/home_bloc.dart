@@ -27,6 +27,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<RefreshHomeDataEvent>(_onRefreshHomeData);
     on<FetchFitnessDataEvent>(_onFetchFitnessData);
     on<FetchWeeklyFitnessDataEvent>(_onFetchWeeklyFitnessData);
+    on<FetchWeightChartDataEvent>(_onFetchWeightChartData);
     on<RegisterWithGoogleFitEvent>(_onRegisterWithGoogleFit);
     // Body Chart events
     on<InitializeBodyChartEvent>(_onInitializeBodyChart);
@@ -128,12 +129,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   ) async {
     // Input validation
     if (event.userId.isEmpty) {
-      if (state is HomeLoaded) {
-        final currentState = state as HomeLoaded;
-        emit(currentState.copyWith(error: 'User ID cannot be empty'));
-      } else {
-        emit(const HomeError('User ID cannot be empty'));
-      }
+      emit(const HomeError('User ID cannot be empty'));
       return;
     }
 
@@ -157,10 +153,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
           failure,
           StackTrace.current,
         );
-        // Preserve previous state if available
         if (state is HomeLoaded) {
-          final previousState = state as HomeLoaded;
-          emit(previousState.copyWith(error: _mapFailureToMessage(failure)));
+          emit(HomeError(_mapFailureToMessage(failure)));
+          emit(state);
         } else {
           emit(HomeError(_mapFailureToMessage(failure)));
         }
@@ -174,10 +169,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
               failure,
               StackTrace.current,
             );
-            // Preserve previous state if available
             if (state is HomeLoaded) {
-              final previousState = state as HomeLoaded;
-              emit(previousState.copyWith(error: _mapFailureToMessage(failure)));
+              emit(HomeError(_mapFailureToMessage(failure)));
+              emit(state);
             } else {
               emit(HomeError(_mapFailureToMessage(failure)));
             }
@@ -241,31 +235,70 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     final now = DateTime.now();
     final monday = _getMondayOfWeek(now);
-    final weeklyData = <FitnessData>[];
+    final dates = List.generate(7, (i) => monday.add(Duration(days: i)));
 
-    for (int i = 0; i < 7; i++) {
-      final date = monday.add(Duration(days: i));
-      final fitnessDataResult = await getFitnessDataWithPermissionsUseCase(date);
-      
-      fitnessDataResult.fold(
+    final results = await Future.wait(
+      dates.map((date) => getFitnessDataWithPermissionsUseCase(date)),
+    );
+
+    final weeklyData = <FitnessData>[];
+    for (int i = 0; i < results.length; i++) {
+      results[i].fold(
         (failure) {
-          // Log error for monitoring
           AppLogger.w(
-            'HomeBloc: Failed to fetch fitness data for ${date.toString()}',
+            'HomeBloc: Failed to fetch fitness data for ${dates[i]}',
             failure,
             StackTrace.current,
           );
-          weeklyData.add(FitnessData(date: date));
+          weeklyData.add(FitnessData(date: dates[i]));
         },
-        (fitnessData) {
-          weeklyData.add(fitnessData);
-        },
+        (fitnessData) => weeklyData.add(fitnessData),
       );
     }
 
     emit(currentState.copyWith(
       weeklyFitnessData: weeklyData,
       isFetchingWeeklyData: false,
+    ));
+  }
+
+  Future<void> _onFetchWeightChartData(
+    FetchWeightChartDataEvent event,
+    Emitter<HomeState> emit,
+  ) async {
+    if (state is! HomeLoaded) return;
+
+    final currentState = state as HomeLoaded;
+    final now = DateTime.now();
+    final dates = List.generate(15, (i) => now.subtract(Duration(days: 14 - i)));
+
+    final results = await Future.wait(
+      dates.map((date) => getFitnessDataWithPermissionsUseCase(date)),
+    );
+
+    final weightChartData = <FitnessData>[];
+    for (int i = 0; i < results.length; i++) {
+      results[i].fold(
+        (failure) {
+          AppLogger.w(
+            'HomeBloc: Failed to fetch fitness data for weight chart ${dates[i]}',
+            failure,
+            StackTrace.current,
+          );
+          weightChartData.add(FitnessData(date: dates[i]));
+        },
+        (fitnessData) => weightChartData.add(fitnessData),
+      );
+    }
+
+    final lastSeven = weightChartData.length >= 7
+        ? weightChartData.sublist(weightChartData.length - 7)
+        : weightChartData;
+    emit(currentState.copyWith(
+      weightChartFitnessData: weightChartData,
+      weeklyFitnessData: currentState.weeklyFitnessData.isEmpty
+          ? lastSeven
+          : currentState.weeklyFitnessData,
     ));
   }
 

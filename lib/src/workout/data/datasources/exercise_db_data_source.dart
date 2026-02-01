@@ -104,6 +104,16 @@ class ExerciseDbDataSource implements ExerciseRemoteDataSource {
     return allExercises;
   }
 
+  static const List<String> _fallbackBodyParts = [
+    'waist', 'chest', 'back', 'shoulders', 'arms', 'legs', 'cardio',
+  ];
+  static const List<String> _fallbackTargets = [
+    'abs', 'biceps', 'triceps', 'chest', 'back', 'shoulders', 'legs', 'glutes',
+  ];
+  static const List<String> _fallbackEquipment = [
+    'body weight', 'dumbbell', 'barbell', 'cable', 'machine', 'kettlebell', 'resistance band',
+  ];
+
   @override
   Future<List<String>> getBodyPartList() async {
     try {
@@ -112,9 +122,16 @@ class ExerciseDbDataSource implements ExerciseRemoteDataSource {
         options: Options(headers: _headers),
       );
       return _parseStringListResponse(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        AppLogger.d('ExerciseDB: bodyPartList endpoint not found (404), using fallback list');
+        return List.from(_fallbackBodyParts);
+      }
+      AppLogger.e('ExerciseDB: Error fetching body parts', e);
+      return List.from(_fallbackBodyParts);
     } catch (e) {
       AppLogger.e('ExerciseDB: Error fetching body parts', e);
-      return ['waist', 'chest', 'back', 'shoulders', 'arms', 'legs', 'cardio'];
+      return List.from(_fallbackBodyParts);
     }
   }
 
@@ -126,9 +143,16 @@ class ExerciseDbDataSource implements ExerciseRemoteDataSource {
         options: Options(headers: _headers),
       );
       return _parseStringListResponse(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        AppLogger.d('ExerciseDB: targetList endpoint not found (404), using fallback list');
+        return List.from(_fallbackTargets);
+      }
+      AppLogger.e('ExerciseDB: Error fetching targets', e);
+      return List.from(_fallbackTargets);
     } catch (e) {
       AppLogger.e('ExerciseDB: Error fetching targets', e);
-      return ['abs', 'biceps', 'triceps', 'chest', 'back', 'shoulders', 'legs', 'glutes'];
+      return List.from(_fallbackTargets);
     }
   }
 
@@ -140,9 +164,16 @@ class ExerciseDbDataSource implements ExerciseRemoteDataSource {
         options: Options(headers: _headers),
       );
       return _parseStringListResponse(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        AppLogger.d('ExerciseDB: equipmentList endpoint not found (404), using fallback list');
+        return List.from(_fallbackEquipment);
+      }
+      AppLogger.e('ExerciseDB: Error fetching equipment', e);
+      return List.from(_fallbackEquipment);
     } catch (e) {
       AppLogger.e('ExerciseDB: Error fetching equipment', e);
-      return ['body weight', 'dumbbell', 'barbell', 'cable', 'machine', 'kettlebell', 'resistance band'];
+      return List.from(_fallbackEquipment);
     }
   }
 

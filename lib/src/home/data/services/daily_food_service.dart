@@ -82,6 +82,31 @@ class DailyFoodService {
     }
   }
 
+  /// Update alarm/reminder time for a food entry
+  Future<void> updateAlarmTime(String entryId, String? alarmTime) async {
+    try {
+      if (_userId.isEmpty) {
+        throw Exception('User not authenticated');
+      }
+
+      final dateString = _getTodayDateString();
+      final collection = firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('dailyFoodEntries')
+          .doc(dateString)
+          .collection('entries');
+
+      if (alarmTime == null) {
+        await collection.doc(entryId).update({'alarmTime': FieldValue.delete()});
+      } else {
+        await collection.doc(entryId).update({'alarmTime': alarmTime});
+      }
+    } catch (e) {
+      throw Exception('Failed to update alarm time: $e');
+    }
+  }
+
   /// Delete a food entry
   Future<void> deleteFoodEntry(String entryId) async {
     try {

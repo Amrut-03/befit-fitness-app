@@ -28,12 +28,12 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
   late TextEditingController _caloriesController;
   late TextEditingController _moveMinController;
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-  bool _isPaused = false;
-  String? _pauseReason;
-  bool _hasEditedToday = false;
-  bool _isBeforeNoon = true;
-  String? _errorMessage;
+  final ValueNotifier<bool> _isLoadingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isPausedNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> _pauseReasonNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> _hasEditedTodayNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isBeforeNoonNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<String?> _errorMessageNotifier = ValueNotifier<String?>(null);
 
   @override
   void initState() {
@@ -47,14 +47,18 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
   Future<void> _checkEditStatus() async {
     final hasEdited = await widget.goalService.hasEditedGoalToday();
     final isBeforeNoon = DateTime.now().hour < 12;
-    setState(() {
-      _hasEditedToday = hasEdited;
-      _isBeforeNoon = isBeforeNoon;
-    });
+    _hasEditedTodayNotifier.value = hasEdited;
+    _isBeforeNoonNotifier.value = isBeforeNoon;
   }
 
   @override
   void dispose() {
+    _isLoadingNotifier.dispose();
+    _isPausedNotifier.dispose();
+    _pauseReasonNotifier.dispose();
+    _hasEditedTodayNotifier.dispose();
+    _isBeforeNoonNotifier.dispose();
+    _errorMessageNotifier.dispose();
     _stepsController.dispose();
     _caloriesController.dispose();
     _moveMinController.dispose();
@@ -64,17 +68,14 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
   Future<void> _saveGoals() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_hasEditedToday) {
-      setState(() {
-        _errorMessage = 'You can only edit your goal once per day. Changes will apply ${_isBeforeNoon ? 'today' : 'tomorrow'}.';
-      });
+    if (_hasEditedTodayNotifier.value) {
+      _errorMessageNotifier.value =
+          'You can only edit your goal once per day. Changes will apply ${_isBeforeNoonNotifier.value ? 'today' : 'tomorrow'}.';
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    _isLoadingNotifier.value = true;
+    _errorMessageNotifier.value = null;
 
     try {
       final steps = int.parse(_stepsController.text);
@@ -87,15 +88,13 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
       final moveMinError = widget.goalService.validateMoveMinGoal(moveMin);
 
       if (stepsError != null || caloriesError != null || moveMinError != null) {
-        setState(() {
-          _errorMessage = stepsError ?? caloriesError ?? moveMinError;
-          _isLoading = false;
-        });
+        _errorMessageNotifier.value = stepsError ?? caloriesError ?? moveMinError;
+        _isLoadingNotifier.value = false;
         return;
       }
 
       // Save goals
-      if (!_isPaused) {
+      if (!_isPausedNotifier.value) {
         await widget.goalService.saveGoal(
           goalType: 'steps',
           goalValue: steps,
@@ -114,7 +113,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
           goalType: 'steps',
           goalValue: steps,
           isPaused: true,
-          pauseReason: _pauseReason,
+          pauseReason: _pauseReasonNotifier.value,
         );
       }
 
@@ -122,8 +121,8 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
         'steps': steps,
         'calories': calories,
         'moveMin': moveMin,
-        'isPaused': _isPaused,
-        'pauseReason': _pauseReason,
+        'isPaused': _isPausedNotifier.value,
+        'pauseReason': _pauseReasonNotifier.value,
       });
 
       if (mounted) {
@@ -131,9 +130,9 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _isBeforeNoon 
-                ? 'Goals updated for today!' 
-                : 'Goals will be applied tomorrow!',
+              _isBeforeNoonNotifier.value
+                  ? 'Goals updated for today!'
+                  : 'Goals will be applied tomorrow!',
               style: GoogleFonts.ubuntu(),
             ),
             backgroundColor: AppColors.primary,
@@ -142,22 +141,28 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
         );
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to save goals: ${e.toString()}';
-        _isLoading = false;
-      });
+      _errorMessageNotifier.value = 'Failed to save goals: ${e.toString()}';
+      _isLoadingNotifier.value = false;
     }
   }
 
   void _applySmartSuggestion() {
     if (widget.smartSuggestions != null) {
-      setState(() {
-        _stepsController.text = widget.smartSuggestions!['steps'].toString();
-        _caloriesController.text = widget.smartSuggestions!['calories'].toStringAsFixed(0);
-        _moveMinController.text = widget.smartSuggestions!['moveMin'].toString();
-      });
+      _stepsController.text = widget.smartSuggestions!['steps'].toString();
+      _caloriesController.text =
+          widget.smartSuggestions!['calories'].toStringAsFixed(0);
+      _moveMinController.text = widget.smartSuggestions!['moveMin'].toString();
     }
   }
+
+  Listenable get _goalSheetListenable => Listenable.merge([
+        _isLoadingNotifier,
+        _isPausedNotifier,
+        _pauseReasonNotifier,
+        _hasEditedTodayNotifier,
+        _isBeforeNoonNotifier,
+        _errorMessageNotifier,
+      ]);
 
   @override
   Widget build(BuildContext context) {
@@ -166,21 +171,30 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (context, scrollController) {
-        return SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-              left: 20.w,
-              right: 20.w,
-              top: 12.h,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        return ListenableBuilder(
+          listenable: _goalSheetListenable,
+          builder: (context, _) {
+            final isBeforeNoon = _isBeforeNoonNotifier.value;
+            final hasEditedToday = _hasEditedTodayNotifier.value;
+            final errorMessage = _errorMessageNotifier.value;
+            final isPaused = _isPausedNotifier.value;
+            final pauseReason = _pauseReasonNotifier.value;
+            final isLoading = _isLoadingNotifier.value;
+            return SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                  left: 20.w,
+                  right: 20.w,
+                  top: 12.h,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
             Center(
               child: Container(
                 width: 40.w,
@@ -230,13 +244,13 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                   width: 1,
                 ),
               ),
-              child: Row(
+                  child: Row(
                 children: [
                   Icon(Icons.info_outline, color: AppColors.primary, size: 18.sp),
                   SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
-                      _isBeforeNoon
+                      isBeforeNoon
                           ? 'Editing before 12 PM will apply to today. After 12 PM, changes apply tomorrow.'
                           : 'Editing after 12 PM will apply to tomorrow.',
                       style: GoogleFonts.ubuntu(
@@ -248,7 +262,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                 ],
               ),
             ),
-            if (_hasEditedToday) ...[
+            if (hasEditedToday) ...[
               SizedBox(height: 12.h),
               Container(
                 padding: EdgeInsets.all(12.w),
@@ -278,7 +292,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                 ),
               ),
             ],
-            if (_errorMessage != null) ...[
+            if (errorMessage != null) ...[
               SizedBox(height: 12.h),
               Container(
                 padding: EdgeInsets.all(12.w),
@@ -296,7 +310,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                     SizedBox(width: 8.w),
                     Expanded(
                       child: Text(
-                        _errorMessage!,
+                        errorMessage!,
                         style: GoogleFonts.ubuntu(
                           fontSize: 11.sp,
                           color: Colors.red,
@@ -352,12 +366,10 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
             SizedBox(height: 20.h),
             // Pause goal option
             CheckboxListTile(
-              value: _isPaused,
-              onChanged: _hasEditedToday ? null : (value) {
-                setState(() {
-                  _isPaused = value ?? false;
-                  if (!_isPaused) _pauseReason = null;
-                });
+              value: isPaused,
+              onChanged: hasEditedToday ? null : (value) {
+                _isPausedNotifier.value = value ?? false;
+                if (!_isPausedNotifier.value) _pauseReasonNotifier.value = null;
               },
               title: Text(
                 'Pause Goal Today',
@@ -367,9 +379,9 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: _isPaused
+              subtitle: isPaused
                   ? DropdownButtonFormField<String>(
-                      value: _pauseReason,
+                      value: pauseReason,
                       decoration: InputDecoration(
                         labelText: 'Reason',
                         labelStyle: GoogleFonts.ubuntu(color: Colors.white.withOpacity(0.7)),
@@ -386,9 +398,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                         );
                       }).toList(),
                       onChanged: (value) {
-                        setState(() {
-                          _pauseReason = value;
-                        });
+                        _pauseReasonNotifier.value = value;
                       },
                     )
                   : null,
@@ -399,7 +409,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading || _hasEditedToday ? null : _saveGoals,
+                onPressed: isLoading || hasEditedToday ? null : _saveGoals,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -407,7 +417,7 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                 ),
-                child: _isLoading
+                child: isLoading
                     ? SizedBox(
                         height: 20.h,
                         width: 20.w,
@@ -431,6 +441,8 @@ class _GoalEditingBottomSheetState extends State<GoalEditingBottomSheet> {
         ),
       ),
     ),
+    );
+          },
         );
       },
     );

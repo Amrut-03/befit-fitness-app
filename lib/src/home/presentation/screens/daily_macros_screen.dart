@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:befit_fitness_app/core/constants/app_colors.dart';
+import 'package:befit_fitness_app/core/widgets/shimmer_widget.dart';
 import 'package:befit_fitness_app/src/home/data/services/macro_calculation_service.dart';
 import 'package:befit_fitness_app/src/home/data/services/goal_service.dart';
 import 'package:befit_fitness_app/core/di/injection_container.dart';
@@ -180,11 +181,7 @@ class _DailyMacrosScreenState extends State<DailyMacrosScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: const Color.fromARGB(255, 1, 1, 1),
-              ),
-            )
+          ? const ShimmerMacrosPage()
           : _errorMessage != null
               ? Center(
                   child: Padding(

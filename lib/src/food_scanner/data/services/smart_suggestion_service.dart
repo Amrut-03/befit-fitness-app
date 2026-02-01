@@ -29,7 +29,7 @@ class SmartSuggestionService {
       
       return profile['purpose'] as String?;
     } catch (e) {
-      debugPrint('SmartSuggestionService: Error getting user purpose: $e');
+      if (kDebugMode) debugPrint('SmartSuggestionService: Error getting user purpose: $e');
       return null;
     }
   }
@@ -72,7 +72,7 @@ class SmartSuggestionService {
       suggestions.addAll(_getIngredientBasedSuggestions(ingredients));
       
     } catch (e) {
-      debugPrint('SmartSuggestionService: Error generating suggestions: $e');
+      if (kDebugMode) debugPrint('SmartSuggestionService: Error generating suggestions: $e');
     }
     
     return suggestions;

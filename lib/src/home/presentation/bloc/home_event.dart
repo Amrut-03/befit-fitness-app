@@ -39,6 +39,11 @@ class FetchWeeklyFitnessDataEvent extends HomeEvent {
   const FetchWeeklyFitnessDataEvent();
 }
 
+/// Event to fetch last 15 days fitness data for weight chart
+class FetchWeightChartDataEvent extends HomeEvent {
+  const FetchWeightChartDataEvent();
+}
+
 /// Event to register with Google Fit
 class RegisterWithGoogleFitEvent extends HomeEvent {
   const RegisterWithGoogleFitEvent();
