@@ -47,10 +47,62 @@
               "client_type": 3
             },
             {
-              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_id": "475383477382-j496vtf83cepb9s3jtoo80q65lorhaig.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.befitApp"
+                "bundle_id": "com.befitfitness.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475383477382:android:c0a17d345241fb45c44d07",
+        "android_client_info": {
+          "package_name": "com.befitfitness.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475383477382-jee9osjevgqlccj5ihoasfmtdbqutpjv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.befitfitness.app",
+            "certificate_hash": "54c7a8f8d2d5ea570d8a14934eae0a85aac4f61d"
+          }
+        },
+        {
+          "client_id": "475383477382-s5ql9okitk3n9ljphtd1reigcaeikhd6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.befitfitness.app",
+            "certificate_hash": "f21ed36d7035a0ec859f0c488413ec3d4b21df5f"
+          }
+        },
+        {
+          "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475383477382-qon5oc39997dtltulhm5jqjsnli7g89d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475383477382-j496vtf83cepb9s3jtoo80q65lorhaig.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.befitfitness.app"
               }
             }
           ]
@@ -83,10 +135,10 @@
               "client_type": 3
             },
             {
-              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_id": "475383477382-j496vtf83cepb9s3jtoo80q65lorhaig.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.befitApp"
+                "bundle_id": "com.befitfitness.app"
               }
             }
           ]
@@ -127,10 +179,10 @@
               "client_type": 3
             },
             {
-              "client_id": "475383477382-vk5fbrf16p150gdtk18cnde7j1ldo19r.apps.googleusercontent.com",
+              "client_id": "475383477382-j496vtf83cepb9s3jtoo80q65lorhaig.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.befitApp"
+                "bundle_id": "com.befitfitness.app"
               }
             }
           ]

@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.befit_fitness.app"
+        applicationId = "com.befitfitness.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
@@ -53,11 +53,57 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
+    val keystoreProperties = Properties()
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { stream ->
+            val rawProperties = Properties()
+            rawProperties.load(stream)
+            // Trim all keys and values to handle encoding/whitespace issues
+            rawProperties.forEach { key, value ->
+                keystoreProperties.setProperty(key.toString().trim(), value.toString().trim())
+            }
+        }
+        println("INFO: key.properties loaded. Cleaned keys: ${keystoreProperties.keys}")
+    } else {
+        println("WARNING: key.properties NOT found at ${keystorePropertiesFile.absolutePath}")
+    }
+
+    signingConfigs {
+        val alias = keystoreProperties.getProperty("keyAlias")
+        val keyPass = keystoreProperties.getProperty("keyPassword")
+        val storePass = keystoreProperties.getProperty("storePassword")
+        val storePath = keystoreProperties.getProperty("storeFile")
+
+        if (alias != null && keyPass != null && storePass != null && storePath != null) {
+            create("release") {
+                keyAlias = alias
+                keyPassword = keyPass
+                storeFile = rootProject.file("app/$storePath")
+                storePassword = storePass
+            }
+            println("INFO: Release signing configuration created successfully.")
+        } else {
+            if (keystoreProperties.isNotEmpty()) {
+                println("DEBUG: Cleaned keys found: ${keystoreProperties.keys}")
+                println("DEBUG: Required keys missing. Checking for common issues...")
+            }
+            println("WARNING: Missing properties in key.properties. Build will fail back to debug signing.")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseConfig = signingConfigs.findByName("release")
+            if (releaseConfig != null) {
+                signingConfig = releaseConfig
+                println("INFO: Using RELEASE signing configuration.")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+                println("CAUTION: FALLING BACK TO DEBUG SIGNING CONFIGURATION!")
+            }
         }
     }
 }

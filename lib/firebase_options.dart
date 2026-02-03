@@ -26,10 +26,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -54,9 +51,21 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDqFmQM87gdomI00zdgRHucLDsybqlGg9o',
-    appId: '1:475383477382:android:e7aebccb416c8129c44d07',
+    appId: '1:475383477382:android:c0a17d345241fb45c44d07',
     messagingSenderId: '475383477382',
     projectId: 'fitness-app-9dac8',
     storageBucket: 'fitness-app-9dac8.appspot.com',
   );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDMDD5RkhnMjxOyNtpc03OY4w4qJBQPfB4',
+    appId: '1:475383477382:ios:9b89498ab6b40b72c44d07',
+    messagingSenderId: '475383477382',
+    projectId: 'fitness-app-9dac8',
+    storageBucket: 'fitness-app-9dac8.appspot.com',
+    androidClientId: '475383477382-b8mh63e8tfffmlm82lrb7k9t4dnp6qpa.apps.googleusercontent.com',
+    iosClientId: '475383477382-j496vtf83cepb9s3jtoo80q65lorhaig.apps.googleusercontent.com',
+    iosBundleId: 'com.befitfitness.app',
+  );
+
 }
